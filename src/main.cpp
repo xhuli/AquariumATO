@@ -13,6 +13,8 @@
 #include <TimedSwitchable.h>
 #include <Timer.h>
 
+/* << Constants >> */
+
 namespace ato
 {
     namespace McuPin
@@ -38,6 +40,18 @@ constexpr uint8_t INITIAL_READING_HIGH = HIGH;
 constexpr uint8_t INITIAL_READING_LOW = LOW;
 constexpr uint32_t PERIODIC_PUSH_READING_DISABLED = xal::duration::SECONDS_0;
 constexpr uint32_t PERIODIC_PUSH_READING_PERIOD = xal::duration::SECONDS_2;
+
+constexpr uint32_t SLEEP_MAX_DURATION = xal::duration::HOURS_2;
+constexpr uint32_t IDLE_MAX_DURATION = xal::duration::HOURS_6;
+
+constexpr uint32_t PUMP_MAX_ON_DURATION = xal::duration::SECONDS_90;
+
+constexpr uint32_t PUSH_BUTTON_PIN_INPUT_MODE = INPUT;        /* INPUT or INPUT_PULLUP */
+constexpr uint32_t PUSH_BUTTON_PIN_STATE_WHEN_RELEASED = LOW; /* HIGH or LOW */
+constexpr uint32_t PUSH_BUTTON_DEBOUNCE_MS = xal::duration::MILLIS_160;
+constexpr uint32_t PUSH_BUTTON_LONG_PRESS_DURATION = xal::duration::SECONDS_3;
+
+/* << Initialization >> */
 
 xal::Switchable switchableRedLed(ato::McuPin::RedLed, WHEN_ON__PIN_HIGH);
 xal::Switchable switchableYellowLed(ato::McuPin::YellowLed, WHEN_ON__PIN_HIGH);
@@ -76,11 +90,6 @@ xal::LiquidLevelSensor highLevelSensor(
 //     PERIODIC_PUSH_READING_PERIOD,
 //     INITIAL_READING_HIGH);
 
-constexpr uint32_t PUSH_BUTTON_PIN_INPUT_MODE = INPUT;        /* INPUT or INPUT_PULLUP */
-constexpr uint32_t PUSH_BUTTON_PIN_STATE_WHEN_RELEASED = LOW; /* HIGH or LOW */
-constexpr uint32_t PUSH_BUTTON_DEBOUNCE_MS = xal::duration::MILLIS_160;
-constexpr uint32_t PUSH_BUTTON_LONG_PRESS_DURATION = xal::duration::SECONDS_3;
-
 xal::PushButton pushButton(
     ato::McuPin::PushButton,
     PUSH_BUTTON_PIN_INPUT_MODE,
@@ -94,18 +103,9 @@ xal::Timer idleTimer;
 xal::ato::AtoActions atoActions;
 xal::ato::AtoFsm atoFsm(atoActions);
 
-void setup()
-{
-    /* Required for logging */
-    // Serial.begin(9600);
-    //     while (!Serial && !Serial.available()) {
-    // }
-    // randomSeed(analogRead(0));
+/* << Cofigure helper functions >> */
 
-    /* Configure Logging */
-    // Log.begin(LOG_LEVEL_VERBOSE, &Serial);
-
-    /* Configure the ATO actions */
+void configureAtoActions() {
     atoActions.setRedLed(&redLed);
     atoActions.setYellowLed(&yellowLed);
     atoActions.setGreenLed(&greenLed);
@@ -113,8 +113,9 @@ void setup()
     atoActions.setWaterDispenser(&waterPump);
     atoActions.setSleepTimer(&sleepTimer);
     atoActions.setIdleTimer(&idleTimer);
+}
 
-    /* Configure the sensors */
+void configureSensors() {
     normalLevelSensor.setIsTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::NormalLevelSensorIsTriggered); });
     normalLevelSensor.setNotTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::NormalLevelSensorNotTriggered); });
 
@@ -126,23 +127,45 @@ void setup()
 
     // reservoirLevelSensor.setIsTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::ReservoirLevelSensorIsTriggered); });
     // reservoirLevelSensor.setNotTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::ReservoirLevelSensorNotTriggered); });
+}
 
-    /* Configure the sleep timer */
-    sleepTimer.setDurationMs(xal::duration::MINUTES_90);
+void configureTimers() {
+    sleepTimer.setDurationMs(SLEEP_MAX_DURATION);
     sleepTimer.setCallback([]() { atoFsm.dispatch(xal::ato::Event::SleepTimeElapsed); });
 
-    /* Configure the idle timer */
-    idleTimer.setDurationMs(xal::duration::HOURS_12);
+    idleTimer.setDurationMs(IDLE_MAX_DURATION);
     idleTimer.setCallback([]() { atoFsm.dispatch(xal::ato::Event::MaxIdleTimeElapsed); });
+}
 
-    /* Configure the water pump */
-    waterPump.setMaxOnTimeMs(xal::duration::SECONDS_90);
+void configureWaterPump() {
+    waterPump.setMaxOnTimeMs(PUMP_MAX_ON_DURATION);
     waterPump.setOnTimeElapsedCallback([]() { atoFsm.dispatch(xal::ato::Event::DispenserOnTimeElapsed); });
     waterPump.setOff();
+}
 
-    /* Configure the push button */
+void configurePushButton() {
     pushButton.setShortPressCallback([]() { atoFsm.dispatch(xal::ato::Event::DispenseButtonIsPushed); });
     pushButton.setLongPressCallback([]() { atoFsm.dispatch(xal::ato::Event::SleepButtonIsPushed); });
+}
+
+
+void setup()
+{
+    /* Required for logging */
+    // Serial.begin(9600);
+    //     while (!Serial && !Serial.available()) {
+    // }
+    // randomSeed(analogRead(0));
+
+    /* Configure Logging */
+    // Log.begin(LOG_LEVEL_VERBOSE, &Serial);
+
+    /* Configure the ATO components */
+    configureAtoActions();
+    configureSensors();
+    configureTimers();
+    configureWaterPump();
+    configurePushButton();
 
     /* Configure runnables */
     xal::Runnable::setupAll();
