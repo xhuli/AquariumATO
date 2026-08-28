@@ -296,6 +296,7 @@ namespace xal
                             default:
                                 break;
                         }
+                        break;
 
                     case State::Error:
                         switch (event)
