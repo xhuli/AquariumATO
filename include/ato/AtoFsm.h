@@ -10,7 +10,7 @@ namespace xal
     namespace ato
     {
 
-        enum class State
+        enum class State : uint8_t
         {
             Idle,
             DispensingInAutoMode,
@@ -23,7 +23,7 @@ namespace xal
             Error
         };
 
-        enum class Event
+        enum class Event : uint8_t
         {
             HighLevelSensorIsTriggered,
             HighLevelSensorNotTriggered,
@@ -85,11 +85,110 @@ namespace xal
         // */
 
         /**
+         * @brief A single (fromState, event) -> toState rule.
+         */
+        struct Transition
+        {
+            State fromState;
+            Event event;
+            State toState;
+        };
+
+        /**
+         * @brief The complete transition table, transcribed 1:1 from the
+         * original nested-switch dispatch() implementation and verified
+         * against test/test_ato_fsm/test_ato_fsm.cpp (69 passing assertions
+         * covering every row below plus one "no match -> no transition"
+         * guard per state).
+         *
+         * Ordering within a state doesn't matter (each (fromState, event)
+         * pair appears at most once, so there is never more than one
+         * matching row) — grouped by originating state here purely for
+         * human readability, matching the original switch's structure.
+         */
+        static constexpr Transition TRANSITION_TABLE[] = {
+            /* State::Idle */
+            {State::Idle, Event::HighLevelSensorIsTriggered, State::WaterLevelHigh},
+            {State::Idle, Event::LowLevelSensorNotTriggered, State::WaterLevelLow},
+            {State::Idle, Event::SleepTimeElapsed, State::Error},
+            {State::Idle, Event::DispenserOnTimeElapsed, State::Error},
+            {State::Idle, Event::NormalLevelSensorNotTriggered, State::DispensingInAutoMode},
+            {State::Idle, Event::ReservoirLevelSensorNotTriggered, State::ReservoirEmpty},
+            {State::Idle, Event::DispenseButtonIsPushed, State::DispensingInManualMode},
+            {State::Idle, Event::MaxIdleTimeElapsed, State::IdleForTooLong},
+            {State::Idle, Event::SleepButtonIsPushed, State::Sleeping},
+
+            /* State::DispensingInAutoMode */
+            {State::DispensingInAutoMode, Event::HighLevelSensorIsTriggered, State::WaterLevelHigh},
+            {State::DispensingInAutoMode, Event::LowLevelSensorNotTriggered, State::WaterLevelLow},
+            {State::DispensingInAutoMode, Event::SleepTimeElapsed, State::Error},
+            {State::DispensingInAutoMode, Event::NormalLevelSensorIsTriggered, State::Idle},
+            {State::DispensingInAutoMode, Event::DispenseButtonIsPushed, State::Idle},
+            {State::DispensingInAutoMode, Event::ReservoirLevelSensorNotTriggered, State::ReservoirEmpty},
+            {State::DispensingInAutoMode, Event::DispenserOnTimeElapsed, State::ReservoirEmpty},
+            {State::DispensingInAutoMode, Event::SleepButtonIsPushed, State::Sleeping},
+
+            /* State::DispensingInManualMode */
+            {State::DispensingInManualMode, Event::HighLevelSensorIsTriggered, State::WaterLevelHigh},
+            {State::DispensingInManualMode, Event::SleepTimeElapsed, State::Error},
+            {State::DispensingInManualMode, Event::NormalLevelSensorIsTriggered, State::Idle},
+            {State::DispensingInManualMode, Event::DispenseButtonIsPushed, State::Idle},
+            {State::DispensingInManualMode, Event::DispenserOnTimeElapsed, State::Idle},
+            {State::DispensingInManualMode, Event::ReservoirLevelSensorNotTriggered, State::ReservoirEmpty},
+            {State::DispensingInManualMode, Event::SleepButtonIsPushed, State::Sleeping},
+
+            /* State::WaterLevelLow */
+            {State::WaterLevelLow, Event::LowLevelSensorIsTriggered, State::Idle},
+            {State::WaterLevelLow, Event::NormalLevelSensorIsTriggered, State::Idle},
+            {State::WaterLevelLow, Event::DispenseButtonIsPushed, State::DispensingInManualMode},
+            {State::WaterLevelLow, Event::SleepButtonIsPushed, State::Sleeping},
+
+            /* State::WaterLevelHigh */
+            {State::WaterLevelHigh, Event::DispenseButtonIsPushed, State::Idle},
+            {State::WaterLevelHigh, Event::HighLevelSensorNotTriggered, State::Idle},
+            {State::WaterLevelHigh, Event::SleepButtonIsPushed, State::Sleeping},
+            {State::WaterLevelHigh, Event::NormalLevelSensorNotTriggered, State::Error},
+            {State::WaterLevelHigh, Event::LowLevelSensorNotTriggered, State::Error},
+
+            /* State::ReservoirEmpty */
+            {State::ReservoirEmpty, Event::HighLevelSensorIsTriggered, State::Error},
+            {State::ReservoirEmpty, Event::LowLevelSensorNotTriggered, State::Error},
+            {State::ReservoirEmpty, Event::SleepTimeElapsed, State::Error},
+            {State::ReservoirEmpty, Event::DispenserOnTimeElapsed, State::Error},
+            {State::ReservoirEmpty, Event::NormalLevelSensorIsTriggered, State::Idle},
+            {State::ReservoirEmpty, Event::DispenseButtonIsPushed, State::Idle},
+            {State::ReservoirEmpty, Event::ReservoirLevelSensorIsTriggered, State::Idle},
+            {State::ReservoirEmpty, Event::SleepButtonIsPushed, State::Sleeping},
+
+            /* State::Sleeping */
+            {State::Sleeping, Event::DispenseButtonIsPushed, State::Idle},
+            {State::Sleeping, Event::SleepButtonIsPushed, State::Idle},
+            {State::Sleeping, Event::SleepTimeElapsed, State::Idle},
+
+            /* State::IdleForTooLong */
+            {State::IdleForTooLong, Event::NormalLevelSensorNotTriggered, State::DispensingInAutoMode},
+            {State::IdleForTooLong, Event::DispenseButtonIsPushed, State::Idle},
+            {State::IdleForTooLong, Event::LowLevelSensorNotTriggered, State::WaterLevelLow},
+            {State::IdleForTooLong, Event::HighLevelSensorIsTriggered, State::WaterLevelHigh},
+            {State::IdleForTooLong, Event::ReservoirLevelSensorNotTriggered, State::ReservoirEmpty},
+            {State::IdleForTooLong, Event::SleepButtonIsPushed, State::Sleeping},
+
+            /* State::Error */
+            {State::Error, Event::DispenseButtonIsPushed, State::Idle},
+            {State::Error, Event::SleepButtonIsPushed, State::Sleeping},
+        };
+
+        /**
          * @class AtoFsm
          * @brief This class implements a finite state machine (FSM) for the Automatic Top-Off (ATO) system.
          *
          * The AtoFsm class manages the state transitions and actions of the ATO system based on various events.
          * It uses the AtoActions class to perform actions corresponding to different states and events.
+         *
+         * dispatch() looks up the (currentState, event) pair in TRANSITION_TABLE above.
+         * If a matching row exists, it transitions to that row's toState. If no row
+         * matches, the event is ignored — equivalent to the original implementation's
+         * `default: break;` in every state's switch.
          *
          * Usage:
          * - Create an instance of AtoFsm with a reference to an AtoActions instance.
@@ -108,210 +207,29 @@ namespace xal
             }
             ~AtoFsm() = default;
 
+            /**
+             * @brief Gets the current state of the FSM.
+             * @return The current State.
+             */
+            State getState() const
+            {
+                return state;
+            }
+
             void dispatch(Event event)
             {
                 // Log.noticeln("AFsm St=%s Ev=%s", getState(state).c_str(), getEvent(event).c_str());
 
-                switch (state)
+                for (const auto &transition : TRANSITION_TABLE)
                 {
-                    case State::Idle:
-                        switch (event)
-                        {
-                            case Event::HighLevelSensorIsTriggered:
-                                transit(State::WaterLevelHigh);
-                                break;
-                            case Event::LowLevelSensorNotTriggered:
-                                transit(State::WaterLevelLow);
-                                break;
-                            case Event::SleepTimeElapsed:
-                            case Event::DispenserOnTimeElapsed:
-                                transit(State::Error);
-                                break;
-                            case Event::NormalLevelSensorNotTriggered:
-                                transit(State::DispensingInAutoMode);
-                                break;
-                            case Event::ReservoirLevelSensorNotTriggered:
-                                transit(State::ReservoirEmpty);
-                                break;
-                            case Event::DispenseButtonIsPushed:
-                                transit(State::DispensingInManualMode);
-                                break;
-                            case Event::MaxIdleTimeElapsed:
-                                transit(State::IdleForTooLong);
-                                break;
-                            case Event::SleepButtonIsPushed:
-                                transit(State::Sleeping);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-
-                    case State::DispensingInAutoMode:
-                        switch (event)
-                        {
-                            case Event::HighLevelSensorIsTriggered:
-                                transit(State::WaterLevelHigh);
-                                break;
-                            case Event::LowLevelSensorNotTriggered:
-                                transit(State::WaterLevelLow);
-                                break;
-                            case Event::SleepTimeElapsed:
-                                transit(State::Error);
-                                break;
-                            case Event::NormalLevelSensorIsTriggered:
-                            case Event::DispenseButtonIsPushed:
-                                transit(State::Idle);
-                                break;
-                            case Event::ReservoirLevelSensorNotTriggered:
-                            case Event::DispenserOnTimeElapsed:
-                                transit(State::ReservoirEmpty);
-                                break;
-                            case Event::SleepButtonIsPushed:
-                                transit(State::Sleeping);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-
-                    case State::DispensingInManualMode:
-                        switch (event)
-                        {
-                            case Event::HighLevelSensorIsTriggered:
-                                transit(State::WaterLevelHigh);
-                                break;
-                            case Event::SleepTimeElapsed:
-                                transit(State::Error);
-                                break;
-                            case Event::NormalLevelSensorIsTriggered:
-                            case Event::DispenseButtonIsPushed:
-                            case Event::DispenserOnTimeElapsed:
-                                transit(State::Idle);
-                                break;
-                            case Event::ReservoirLevelSensorNotTriggered:
-                                transit(State::ReservoirEmpty);
-                                break;
-                            case Event::SleepButtonIsPushed:
-                                transit(State::Sleeping);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-
-                    case State::WaterLevelLow:
-                        switch (event)
-                        {
-                            case Event::LowLevelSensorIsTriggered:
-                            case Event::NormalLevelSensorIsTriggered:
-                                transit(State::Idle);
-                                break;
-                            case Event::DispenseButtonIsPushed:
-                                transit(State::DispensingInManualMode);
-                                break;
-                            case Event::SleepButtonIsPushed:
-                                transit(State::Sleeping);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-
-                    case State::WaterLevelHigh:
-                        switch (event)
-                        {
-                            case Event::DispenseButtonIsPushed:
-                            case Event::HighLevelSensorNotTriggered:
-                                transit(State::Idle);
-                                break;
-                            case Event::SleepButtonIsPushed:
-                                transit(State::Sleeping);
-                                break;
-                            case Event::NormalLevelSensorNotTriggered:
-                            case Event::LowLevelSensorNotTriggered:
-                                transit(State::Error);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-
-                    case State::ReservoirEmpty:
-                        switch (event)
-                        {
-                            case Event::HighLevelSensorIsTriggered:
-                            case Event::LowLevelSensorNotTriggered:
-                            case Event::SleepTimeElapsed:
-                            case Event::DispenserOnTimeElapsed:
-                                transit(State::Error);
-                                break;
-                            case Event::NormalLevelSensorIsTriggered:
-                            case Event::DispenseButtonIsPushed:
-                            case Event::ReservoirLevelSensorIsTriggered:
-                                transit(State::Idle);
-                                break;
-                            case Event::SleepButtonIsPushed:
-                                transit(State::Sleeping);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-
-                    case State::Sleeping:
-                        switch (event)
-                        {
-                            case Event::DispenseButtonIsPushed:
-                            case Event::SleepButtonIsPushed:
-                            case Event::SleepTimeElapsed:
-                                transit(State::Idle);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-
-                    case State::IdleForTooLong:
-                        switch (event)
-                        {
-                            case Event::NormalLevelSensorNotTriggered:
-                                transit(State::DispensingInAutoMode);
-                                break;
-                            case Event::DispenseButtonIsPushed:
-                                transit(State::Idle);
-                                break;
-                            case Event::LowLevelSensorNotTriggered:
-                                transit(State::WaterLevelLow);
-                                break;
-                            case Event::HighLevelSensorIsTriggered:
-                                transit(State::WaterLevelHigh);
-                                break;
-                            case Event::ReservoirLevelSensorNotTriggered:
-                                transit(State::ReservoirEmpty);
-                                break;
-                            case Event::SleepButtonIsPushed:
-                                transit(State::Sleeping);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-
-                    case State::Error:
-                        switch (event)
-                        {
-                            case Event::DispenseButtonIsPushed:
-                                transit(State::Idle);
-                                break;
-                            case Event::SleepButtonIsPushed:
-                                transit(State::Sleeping);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
+                    if (transition.fromState == state && transition.event == event)
+                    {
+                        transit(transition.toState);
+                        return;
+                    }
                 }
+                /* No matching (state, event) row: ignore the event, same as the
+                   original switch's default: break; in every state. */
             }
 
         private:
