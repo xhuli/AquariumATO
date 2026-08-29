@@ -27,9 +27,17 @@ namespace ato
         constexpr uint8_t Buzzer = 2;
 
         constexpr uint8_t NormalLiquidLevelSensor = PIN_A0; /* 14 */
-        // constexpr uint8_t LowLiquidLevelSensor = PIN_A1; /* 15 */
-        constexpr uint8_t HighLiquidLevelSensor = PIN_A2; /* 16 */
-        // constexpr uint8_t ReservoirLowLevelSensor = PIN_A3; /* 17 */
+
+#ifdef ATO_HAS_LOW_SENSOR
+        constexpr uint8_t LowLiquidLevelSensor    = PIN_A1; /* 15 */
+#endif
+
+        constexpr uint8_t HighLiquidLevelSensor   = PIN_A2; /* 16 */
+
+#ifdef ATO_HAS_RESERVOIR_SENSOR
+        constexpr uint8_t ReservoirLowLevelSensor = PIN_A3; /* 17 */
+#endif
+
     }; /* namespace McuPin */
 }; /* namespace ato */
 
@@ -78,17 +86,21 @@ xal::LiquidLevelSensor highLevelSensor(
     PERIODIC_PUSH_READING_PERIOD,
     INITIAL_READING_LOW);
 
-// xal::LiquidLevelSensor lowLevelSensor(
-//     ato::McuPin::LowLiquidLevelSensor,
-//     WHEN_ON__PIN_HIGH,
-//     PERIODIC_PUSH_READING_PERIOD,
-//     INITIAL_READING_HIGH);
+#ifdef ATO_HAS_LOW_SENSOR
+xal::LiquidLevelSensor lowLevelSensor(
+    ato::McuPin::LowLiquidLevelSensor,
+    WHEN_ON__PIN_HIGH,
+    PERIODIC_PUSH_READING_PERIOD,
+    INITIAL_READING_HIGH);
+#endif
 
-// xal::LiquidLevelSensor reservoirLevelSensor(
-//     ato::McuPin::ReservoirLowLevelSensor,
-//     WHEN_ON__PIN_HIGH,
-//     PERIODIC_PUSH_READING_PERIOD,
-//     INITIAL_READING_HIGH);
+#ifdef ATO_HAS_RESERVOIR_SENSOR
+xal::LiquidLevelSensor reservoirLevelSensor(
+    ato::McuPin::ReservoirLowLevelSensor,
+    WHEN_ON__PIN_HIGH,
+    PERIODIC_PUSH_READING_PERIOD,
+    INITIAL_READING_HIGH);
+#endif
 
 xal::PushButton pushButton(
     ato::McuPin::PushButton,
@@ -122,11 +134,15 @@ void configureSensors() {
     highLevelSensor.setIsTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::HighLevelSensorIsTriggered); });
     highLevelSensor.setNotTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::HighLevelSensorNotTriggered); });
 
-    // lowLevelSensor.setIsTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::LowLevelSensorIsTriggered); });
-    // lowLevelSensor.setNotTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::LowLevelSensorNotTriggered); });
+#ifdef ATO_HAS_LOW_SENSOR
+    lowLevelSensor.setIsTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::LowLevelSensorIsTriggered); });
+    lowLevelSensor.setNotTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::LowLevelSensorNotTriggered); });
+#endif
 
-    // reservoirLevelSensor.setIsTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::ReservoirLevelSensorIsTriggered); });
-    // reservoirLevelSensor.setNotTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::ReservoirLevelSensorNotTriggered); });
+#ifdef ATO_HAS_RESERVOIR_SENSOR
+    reservoirLevelSensor.setIsTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::ReservoirLevelSensorIsTriggered); });
+    reservoirLevelSensor.setNotTriggeredCallback([]() { atoFsm.dispatch(xal::ato::Event::ReservoirLevelSensorNotTriggered); });
+#endif
 }
 
 void configureTimers() {
