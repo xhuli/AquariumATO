@@ -57,6 +57,11 @@ constexpr uint32_t SLEEP_MAX_DURATION = xal::duration::HOURS_2;
 constexpr uint32_t IDLE_MAX_DURATION = xal::duration::HOURS_6;
 constexpr uint32_t PUMP_MAX_ON_DURATION = xal::duration::SECONDS_90;
 
+static_assert(
+    PUMP_MAX_ON_DURATION >= xal::ato::PUMP_MAX_ON_MS_MIN &&
+        PUMP_MAX_ON_DURATION <= xal::ato::PUMP_MAX_ON_MS_MAX,
+    "Default pump timeout must remain within configured safety bounds");
+
 constexpr uint32_t PUSH_BUTTON_PIN_INPUT_MODE = INPUT;        /* INPUT or INPUT_PULLUP */
 constexpr uint32_t PUSH_BUTTON_PIN_STATE_WHEN_RELEASED = LOW; /* HIGH or LOW */
 constexpr uint32_t PUSH_BUTTON_DEBOUNCE_MS = xal::duration::MILLIS_160;

@@ -28,6 +28,9 @@ namespace xal
          *   SAVE                 - persist current in-memory config to EEPROM
          *   RESET                - revert in-memory config to the compiled
          *                          defaults; applies immediately, not saved
+         *   TRACE ON             - log FSM state changes as they happen
+         *   TRACE ALL            - also log events that produced no change
+         *   TRACE OFF            - stop FSM tracing
          *
          * Field names: SLEEP_MAX_MS, IDLE_MAX_MS, PUMP_MAX_ON_MS
          *
@@ -215,7 +218,6 @@ namespace xal
                 return handleLine(buffer);
             }
 
-
             /**
              * @brief Attempts one already-parsed SET operation.
              * @details The update is staged in a candidate copy and committed
@@ -294,13 +296,15 @@ namespace xal
 
                 if (equalsIgnoreCase(command, "HELP"))
                 {
-                    if (rejectExtraArguments()) return false;
+                    if (rejectExtraArguments())
+                        return false;
                     printHelp();
                     return true;
                 }
                 if (equalsIgnoreCase(command, "GET"))
                 {
-                    if (rejectExtraArguments()) return false;
+                    if (rejectExtraArguments())
+                        return false;
                     printConfig();
                     return true;
                 }
@@ -310,7 +314,8 @@ namespace xal
                 }
                 if (equalsIgnoreCase(command, "SAVE"))
                 {
-                    if (rejectExtraArguments()) return false;
+                    if (rejectExtraArguments())
+                        return false;
                     if (AtoConfigStore::save(config))
                     {
                         Serial.println(F("Saved to EEPROM."));
@@ -321,7 +326,8 @@ namespace xal
                 }
                 if (equalsIgnoreCase(command, "RESET"))
                 {
-                    if (rejectExtraArguments()) return false;
+                    if (rejectExtraArguments())
+                        return false;
                     if (applyCallback(defaults))
                     {
                         config = defaults;

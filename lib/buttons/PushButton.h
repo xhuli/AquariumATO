@@ -22,7 +22,7 @@ namespace xal
         uint8_t pinModeState = INPUT;       /**< The pin mode of the push button. Can be INPUT or INPUT_PULLUP. */
         uint8_t pinStateWhenReleased = LOW; /**< The pin state when the push button is released. */
 
-        RingBuffer<uint8_t, 16> buffer;                /**< Debounces the raw pin read via majority-vote averaging, same mechanism/sample rate as LiquidLevelSensor. */
+        RingBuffer<uint8_t, 16> buffer;               /**< Debounces the raw pin read via majority-vote averaging, same mechanism/sample rate as LiquidLevelSensor. */
         uint8_t previousState = pinStateWhenReleased; /**< The previous (debounced) state of the push button. */
 
         uint16_t debounceMs = 0;    /**< The minimum press duration in milliseconds for a release to be treated as a real press (short or long), rather than ignored. */
@@ -36,12 +36,15 @@ namespace xal
         /**
          * @brief Constructs an PushButton object.
          *
-         * This implementation assumes the MCU pin is connected to ground via a pull-down resistor.
+         * The electrical input mode and released pin state are configurable.
+         * Pressed/released interpretation is derived from pinStateWhenReleased,
+         * so configurations such as INPUT_PULLUP with HIGH-as-released are supported.
          *
          * @param pin The pin number of the push button.
+         * @param pinModeState The Arduino pin mode to configure, e.g. INPUT or INPUT_PULLUP.
+         * @param pinStateWhenReleased The digital pin state that represents a released button.
          * @param debounceMs The debounce time in milliseconds.
-         * @param longPushMs The long press time in milliseconds.
-         * @param buttonListener The button listener object to handle button events.
+         * @param longPressMs The long press time in milliseconds.
          */
         explicit PushButton(
             uint8_t pin,
@@ -87,8 +90,8 @@ namespace xal
         /**
          * @brief Sets up the push button.
          *
-         * This implementation assumes the button MCU pin is connected to ground via a pull-down resistor.
-         * This function sets the pin mode of the button to INPUT.
+         * Configures the button pin using the constructor-supplied pinModeState.
+         * Released/pressed interpretation uses the configured pinStateWhenReleased.
          *
          * @note This function must be called in the setup() function of the sketch using the following code:
          * @example Runnable.setupAll();
