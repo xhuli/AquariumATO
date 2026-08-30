@@ -40,7 +40,7 @@ namespace xal
          */
         class AtoConfigConsole : public Runnable
         {
-            typedef void (*ApplyCallback)(const AtoConfig &);
+            typedef bool (*ApplyCallback)(const AtoConfig &);
 
         private:
             static constexpr uint8_t BUFFER_SIZE = 48;
@@ -132,6 +132,45 @@ namespace xal
                 }
             }
 
+
+            /**
+             * @brief Attempts one already-parsed SET operation.
+             * @details The update is staged in a candidate copy and committed
+             * only after semantic validation and successful live application,
+             * so a rejected value never mutates the active configuration.
+             * This is public to allow deterministic Unity coverage without
+             * mocking HardwareSerial.
+             */
+            bool trySetValue(const char *name, uint32_t numericValue)
+            {
+                AtoConfig candidate = config;
+
+                if (equalsIgnoreCase(name, "SLEEP_MAX_MS"))
+                {
+                    candidate.sleepMaxDurationMs = numericValue;
+                }
+                else if (equalsIgnoreCase(name, "IDLE_MAX_MS"))
+                {
+                    candidate.idleMaxDurationMs = numericValue;
+                }
+                else if (equalsIgnoreCase(name, "PUMP_MAX_ON_MS"))
+                {
+                    candidate.pumpMaxOnDurationMs = numericValue;
+                }
+                else
+                {
+                    return false;
+                }
+
+                if (!isValidAtoConfig(candidate) || !applyCallback(candidate))
+                {
+                    return false;
+                }
+
+                config = candidate;
+                return true;
+            }
+
         private:
             static bool equalsIgnoreCase(const char *a, const char *b)
             {
@@ -169,14 +208,26 @@ namespace xal
                 }
                 else if (equalsIgnoreCase(command, "SAVE"))
                 {
-                    AtoConfigStore::save(config);
-                    Serial.println(F("Saved to EEPROM."));
+                    if (AtoConfigStore::save(config))
+                    {
+                        Serial.println(F("Saved to EEPROM."));
+                    }
+                    else
+                    {
+                        Serial.println(F("ERR invalid config; not saved."));
+                    }
                 }
                 else if (equalsIgnoreCase(command, "RESET"))
                 {
-                    config = defaults;
-                    applyCallback(config);
-                    Serial.println(F("Reset to compiled defaults (not yet saved; use SAVE)."));
+                    if (applyCallback(defaults))
+                    {
+                        config = defaults;
+                        Serial.println(F("Reset to compiled defaults (not yet saved; use SAVE)."));
+                    }
+                    else
+                    {
+                        Serial.println(F("ERR compiled defaults are invalid; reset refused."));
+                    }
                 }
                 else if (equalsIgnoreCase(command, "TRACE"))
                 {
@@ -273,25 +324,27 @@ namespace xal
 
                 uint32_t numericValue = strtoul(value, nullptr, 10);
 
-                if (equalsIgnoreCase(name, "SLEEP_MAX_MS"))
+                if (equalsIgnoreCase(name, "PUMP_MAX_ON_MS") &&
+                    (numericValue < PUMP_MAX_ON_MS_MIN || numericValue > PUMP_MAX_ON_MS_MAX))
                 {
-                    config.sleepMaxDurationMs = numericValue;
+                    Serial.println(F("ERROR PUMP_MAX_ON_MS range 5000..180000"));
+                    return;
                 }
-                else if (equalsIgnoreCase(name, "IDLE_MAX_MS"))
-                {
-                    config.idleMaxDurationMs = numericValue;
-                }
-                else if (equalsIgnoreCase(name, "PUMP_MAX_ON_MS"))
-                {
-                    config.pumpMaxOnDurationMs = numericValue;
-                }
-                else
+
+                if (!equalsIgnoreCase(name, "SLEEP_MAX_MS") &&
+                    !equalsIgnoreCase(name, "IDLE_MAX_MS") &&
+                    !equalsIgnoreCase(name, "PUMP_MAX_ON_MS"))
                 {
                     Serial.println(F("Unknown field. Type HELP."));
                     return;
                 }
 
-                applyCallback(config);
+                if (!trySetValue(name, numericValue))
+                {
+                    Serial.println(F("ERR invalid config; unchanged."));
+                    return;
+                }
+
                 Serial.println(F("Applied (not yet saved; use SAVE)."));
             }
 

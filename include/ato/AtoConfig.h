@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <string.h>
+#include <Duration.h>
 
 namespace xal
 {
@@ -14,6 +15,16 @@ namespace xal
         constexpr int CONFIG_EEPROM_ADDRESS = 0;
         constexpr uint16_t CONFIG_MAGIC = 0xA7F0;
         constexpr uint8_t CONFIG_VERSION = 1;
+
+        /**
+         * Pump runtime safety envelope. Zero is deliberately excluded because
+         * TimedSwitchable interprets 0 as "no automatic timeout". Keeping the
+         * configured maximum within 5..180 seconds provides an independent
+         * pump-protection failsafe even if expected sensor transitions do not
+         * occur.
+         */
+        static constexpr uint32_t PUMP_MAX_ON_MS_MIN = xal::duration::SECONDS_5;
+        static constexpr uint32_t PUMP_MAX_ON_MS_MAX = xal::duration::MINUTES_3;
 
         /**
          * @brief Runtime-tunable ATO timing configuration, persisted to EEPROM.
@@ -38,6 +49,42 @@ namespace xal
         };
 
         /**
+         * @brief Authoritative semantic validation for runtime ATO config.
+         * @details Structural EEPROM metadata (magic/version/CRC) is validated
+         * separately by AtoConfigStore. All configuration sources must satisfy
+         * these runtime safety invariants before values are applied or saved.
+         */
+        inline bool isValidAtoConfig(const AtoConfig &config)
+        {
+            return config.pumpMaxOnDurationMs >= PUMP_MAX_ON_MS_MIN &&
+                   config.pumpMaxOnDurationMs <= PUMP_MAX_ON_MS_MAX;
+        }
+
+        /**
+         * @brief Applies a validated config to the three runtime timing sinks.
+         * @return false without invoking any setter when semantic validation
+         * fails. This prevents an unsafe pump timeout (especially zero) from
+         * reaching TimedSwitchable::setMaxOnTimeMs().
+         */
+        template <typename SleepTimerT, typename IdleTimerT, typename WaterPumpT>
+        bool applyValidatedAtoConfig(
+            const AtoConfig &config,
+            SleepTimerT &sleepTimer,
+            IdleTimerT &idleTimer,
+            WaterPumpT &waterPump)
+        {
+            if (!isValidAtoConfig(config))
+            {
+                return false;
+            }
+
+            sleepTimer.setDurationMs(config.sleepMaxDurationMs);
+            idleTimer.setDurationMs(config.idleMaxDurationMs);
+            waterPump.setMaxOnTimeMs(config.pumpMaxOnDurationMs);
+            return true;
+        }
+
+        /**
          * @class AtoConfigStore
          * @brief Loads/saves AtoConfig to EEPROM with a magic number + version +
          * CRC8 guard, so a corrupt, blank, or version-mismatched EEPROM can
@@ -56,7 +103,7 @@ namespace xal
                 AtoConfig loaded;
                 EEPROM.get(CONFIG_EEPROM_ADDRESS, loaded);
 
-                if (isValid(loaded))
+                if (isStructurallyValid(loaded) && isValidAtoConfig(loaded))
                 {
                     return loaded;
                 }
@@ -71,8 +118,13 @@ namespace xal
              * first), skipping the actual write if nothing changed, to limit
              * EEPROM wear from repeated saves of identical values.
              */
-            static void save(AtoConfig &config)
+            static bool save(AtoConfig &config)
             {
+                if (!isValidAtoConfig(config))
+                {
+                    return false;
+                }
+
                 config.magic = CONFIG_MAGIC;
                 config.version = CONFIG_VERSION;
                 config.crc8 = computeCrc8(config);
@@ -84,10 +136,11 @@ namespace xal
                 {
                     EEPROM.put(CONFIG_EEPROM_ADDRESS, config);
                 }
+                return true;
             }
 
         private:
-            static bool isValid(const AtoConfig &config)
+            static bool isStructurallyValid(const AtoConfig &config)
             {
                 if (config.magic != CONFIG_MAGIC)
                 {

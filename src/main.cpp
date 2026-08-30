@@ -66,7 +66,7 @@ constexpr uint32_t PUSH_BUTTON_LONG_PRESS_DURATION = xal::duration::SECONDS_3;
  * below can take applyAtoConfig's address. Definitions live in the
  * "Configure helper functions" section, alongside the rest of the
  * configureX() functions, following this file's existing structure. */
-void applyAtoConfig(const xal::ato::AtoConfig &config);
+bool applyAtoConfig(const xal::ato::AtoConfig &config);
 
 /* << Initialization >> */
 
@@ -207,10 +207,8 @@ void configureAtoConfig() {
  * configureAtoConfig()) and again by AtoConfigConsole after every
  * runtime SET/RESET, so changes take effect immediately without a reboot.
  */
-void applyAtoConfig(const xal::ato::AtoConfig &config) {
-    sleepTimer.setDurationMs(config.sleepMaxDurationMs);
-    idleTimer.setDurationMs(config.idleMaxDurationMs);
-    waterPump.setMaxOnTimeMs(config.pumpMaxOnDurationMs);
+bool applyAtoConfig(const xal::ato::AtoConfig &config) {
+    return xal::ato::applyValidatedAtoConfig(config, sleepTimer, idleTimer, waterPump);
 }
 
 /**
