@@ -35,16 +35,22 @@ namespace xal
         const uint32_t *cycleArray = nullptr;
 
         uint8_t currentIntervalIndex = 0;
-        uint32_t lastSwitchedMs;
+        uint32_t lastSwitchedMs = 0; /**< Was previously uninitialized: harmless for
+                                          global instances (auto-zero-initialized by
+                                          C++ for static storage duration) but a real
+                                          uninitialized-read risk for any stack-allocated
+                                          instance, e.g. in tests. */
 
         /**
-         * @brief Checks if the specified duration has elapsed since the last state switch.
+         * @brief Checks if the specified duration has elapsed since the last
+         * state switch, relative to the given current time.
+         * @param nowMs The current time in milliseconds.
          * @param durationMs The duration in milliseconds to check.
          * @return True if the duration has elapsed, false otherwise.
          */
-        bool hasElapsed(uint32_t durationMs)
+        bool hasElapsed(uint32_t nowMs, uint32_t durationMs)
         {
-            return (millis() - lastSwitchedMs >= durationMs);
+            return (nowMs - lastSwitchedMs >= durationMs);
         }
 
     public:
@@ -68,13 +74,23 @@ namespace xal
          */
         void setCycleArray(const uint8_t cycleArraySize, const uint32_t *cycleArray)
         {
+            setCycleArray(cycleArraySize, cycleArray, millis());
+        }
+
+        /**
+         * @brief Same as setCycleArray(), but records the switch timestamp
+         * as the given value instead of reading millis() internally.
+         * @param nowMs The current time in milliseconds.
+         */
+        void setCycleArray(const uint8_t cycleArraySize, const uint32_t *cycleArray, uint32_t nowMs)
+        {
             this->cycleArraySize = cycleArraySize;
             this->cycleArray = cycleArray;
 
             if (isOn())
             {
                 currentIntervalIndex = 0;
-                lastSwitchedMs = millis();
+                lastSwitchedMs = nowMs;
                 switchable.setOn();
             }
             else
@@ -88,11 +104,23 @@ namespace xal
          */
         void setOn()
         {
+            setOn(millis());
+        }
+
+        /**
+         * @brief Same as setOn(), but records the switch timestamp as the
+         * given value instead of reading millis() internally. Exists so
+         * cycling logic can be started and driven deterministically with
+         * fabricated timestamps in tests.
+         * @param nowMs The current time in milliseconds.
+         */
+        void setOn(uint32_t nowMs)
+        {
             if (isOff())
             {
                 AbstractSwitchable::setOn();
                 currentIntervalIndex = 0;
-                lastSwitchedMs = millis();
+                lastSwitchedMs = nowMs;
                 switchable.setOn();
             }
         }
@@ -123,20 +151,32 @@ namespace xal
         }
 
         /**
+         * @brief Checks whether the current cycle interval has elapsed as
+         * of nowMs and, if so, advances to the next interval and toggles
+         * the wrapped switchable accordingly. Extracted from loop() so it
+         * can be driven directly with a fabricated timestamp in tests.
+         * @param nowMs The current time in milliseconds (normally millis()).
+         */
+        void process(uint32_t nowMs)
+        {
+            if (isOn() && cycleArray != nullptr && cycleArraySize > 0)
+            {
+                if (hasElapsed(nowMs, cycleArray[currentIntervalIndex]))
+                {
+                    currentIntervalIndex = (currentIntervalIndex + 1) % cycleArraySize;
+                    switchable.setState(currentIntervalIndex % 2 == 0 ? SwitchState::On : SwitchState::Off);
+                    lastSwitchedMs = nowMs;
+                }
+            }
+        }
+
+        /**
          * @brief Called in the main Arduino loop function.
          * @details This function switches the component on and off in a cyclic manner.
          */
         void loop() override
         {
-            if (isOn() && cycleArray != nullptr && cycleArraySize > 0)
-            {
-                if (hasElapsed(cycleArray[currentIntervalIndex]))
-                {
-                    currentIntervalIndex = (currentIntervalIndex + 1) % cycleArraySize;
-                    switchable.setState(currentIntervalIndex % 2 == 0 ? SwitchState::On : SwitchState::Off);
-                    lastSwitchedMs = millis();
-                }
-            }
+            process(millis());
         }
     };
 

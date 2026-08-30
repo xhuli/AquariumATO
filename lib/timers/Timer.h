@@ -30,13 +30,15 @@ namespace xal
         Callback callback = nullptr; /**< Pointer to the callback function to be called when the timer elapses. */
 
         /**
-         * @brief Checks if the timer has elapsed based on the given duration.
+         * @brief Checks if the timer has elapsed based on the given duration,
+         * relative to the given current time.
+         * @param nowMs The current time in milliseconds.
          * @param durationMs The duration to check against.
          * @return True if the timer has elapsed, false otherwise.
          */
-        bool hasElapsed(uint32_t durationMs)
+        bool hasElapsed(uint32_t nowMs, uint32_t durationMs) const
         {
-            return (millis() - startMs >= durationMs);
+            return (nowMs - startMs >= durationMs);
         }
 
     public:
@@ -61,8 +63,20 @@ namespace xal
 
         virtual void setOn() override
         {
+            setOn(millis());
+        }
+
+        /**
+         * @brief Same as setOn(), but starts the elapsed-time clock at the
+         * given timestamp instead of reading millis() internally. Exists so
+         * timer logic can be started and driven deterministically with
+         * fabricated timestamps in tests, with no hardware dependency.
+         * @param nowMs The current time in milliseconds.
+         */
+        void setOn(uint32_t nowMs)
+        {
             AbstractSwitchable::setOn();
-            startMs = millis();
+            startMs = nowMs;
         }
 
         virtual void setOff() override
@@ -75,11 +89,18 @@ namespace xal
         {
         }
 
-        virtual void loop() override
+        /**
+         * @brief Checks whether the timer has elapsed as of nowMs and, if so,
+         * fires the callback and either restarts (doAutoRestart) or turns
+         * off. Extracted from loop() so it can be driven directly with a
+         * fabricated timestamp in tests.
+         * @param nowMs The current time in milliseconds (normally millis()).
+         */
+        void process(uint32_t nowMs)
         {
             if (isOn())
             {
-                if (hasElapsed(durationMs))
+                if (hasElapsed(nowMs, durationMs))
                 {
                     if (callback != nullptr)
                     {
@@ -88,7 +109,7 @@ namespace xal
 
                     if (doAutoRestart)
                     {
-                        startMs = millis();
+                        startMs = nowMs;
                     }
                     else
                     {
@@ -96,6 +117,11 @@ namespace xal
                     }
                 }
             }
+        }
+
+        virtual void loop() override
+        {
+            process(millis());
         }
     };
 

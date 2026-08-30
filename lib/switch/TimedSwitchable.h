@@ -30,17 +30,19 @@ namespace xal
         uint32_t maxOffTimeMs = 0;   /**< The maximum duration in milliseconds that the component can stay off. */
         uint32_t lastSwitchedMs = 0; /**< The timestamp of the last state switch. */
 
-        Callback onTimeElapsedCallback;  /* callback function to be called when on duration is reached */
-        Callback offTimeElapsedCallback; /* callback function to be called when off duration is reached */
+        Callback onTimeElapsedCallback = nullptr;  /* callback function to be called when on duration is reached */
+        Callback offTimeElapsedCallback = nullptr; /* callback function to be called when off duration is reached */
 
         /**
-         * @brief Checks if the specified duration has elapsed since the last state switch.
+         * @brief Checks if the specified duration has elapsed since the last
+         * state switch, relative to the given current time.
+         * @param nowMs The current time in milliseconds.
          * @param durationMs The duration in milliseconds to check.
          * @return True if the duration has elapsed, false otherwise.
          */
-        bool hasElapsed(uint32_t durationMs)
+        bool hasElapsed(uint32_t nowMs, uint32_t durationMs) const
         {
-            return ((durationMs > 0) && (millis() - lastSwitchedMs >= durationMs));
+            return ((durationMs > 0) && (nowMs - lastSwitchedMs >= durationMs));
         }
 
         /**
@@ -104,21 +106,53 @@ namespace xal
 
         virtual void setOn()
         {
-            lastSwitchedMs = millis();
+            setOn(millis());
+        }
+
+        /**
+         * @brief Same as setOn(), but records the switch timestamp as the
+         * given value instead of reading millis() internally. Exists so
+         * timing logic can be tested deterministically with fabricated
+         * timestamps.
+         * @param nowMs The current time in milliseconds.
+         */
+        void setOn(uint32_t nowMs)
+        {
+            lastSwitchedMs = nowMs;
             AbstractSwitchable::setOn();
             switchable.setOn();
         }
 
         virtual void setOff()
         {
-            lastSwitchedMs = millis();
+            setOff(millis());
+        }
+
+        /**
+         * @brief Same as setOff(), but records the switch timestamp as the
+         * given value instead of reading millis() internally.
+         * @param nowMs The current time in milliseconds.
+         */
+        void setOff(uint32_t nowMs)
+        {
+            lastSwitchedMs = nowMs;
             AbstractSwitchable::setOff();
             switchable.setOff();
         }
 
         virtual void toggle()
         {
-            lastSwitchedMs = millis();
+            toggle(millis());
+        }
+
+        /**
+         * @brief Same as toggle(), but records the switch timestamp as the
+         * given value instead of reading millis() internally.
+         * @param nowMs The current time in milliseconds.
+         */
+        void toggle(uint32_t nowMs)
+        {
+            lastSwitchedMs = nowMs;
             AbstractSwitchable::toggle();
             switchable.toggle();
         }
@@ -128,16 +162,19 @@ namespace xal
         }
 
         /**
-         * @brief Executes the component's main logic.
-         * @details This function is called repeatedly in the main loop.
+         * @brief Checks whether the current state's max duration has
+         * elapsed as of nowMs and, if so, flips state and fires the
+         * matching callback. Extracted from loop() so it can be driven
+         * directly with a fabricated timestamp in tests.
+         * @param nowMs The current time in milliseconds (normally millis()).
          */
-        virtual void loop() override
+        void process(uint32_t nowMs)
         {
-            if (hasElapsed(currentStateMaxDurationMs()))
+            if (hasElapsed(nowMs, currentStateMaxDurationMs()))
             {
                 if (isOn())
                 {
-                    setOff();
+                    setOff(nowMs);
                     if (onTimeElapsedCallback != nullptr)
                     {
                         onTimeElapsedCallback();
@@ -145,13 +182,22 @@ namespace xal
                 }
                 else
                 {
-                    setOn();
+                    setOn(nowMs);
                     if (offTimeElapsedCallback != nullptr)
                     {
                         offTimeElapsedCallback();
                     }
                 }
             }
+        }
+
+        /**
+         * @brief Executes the component's main logic.
+         * @details This function is called repeatedly in the main loop.
+         */
+        virtual void loop() override
+        {
+            process(millis());
         }
     };
 
