@@ -376,6 +376,267 @@ void test_valid_config_reaches_all_runtime_setters()
     TEST_ASSERT_EQUAL_UINT32(180000, pump.value);
 }
 
+
+
+/* ============================================================ */
+/* P1 serial-console parser hardening                             */
+/* ============================================================ */
+
+void test_parse_uint32_boundaries_and_invalid_tokens()
+{
+    uint32_t value = 123;
+
+    TEST_ASSERT_TRUE(AtoConfigConsole::parseUint32("0", value));
+    TEST_ASSERT_EQUAL_UINT32(0, value);
+    TEST_ASSERT_TRUE(AtoConfigConsole::parseUint32("4294967295", value));
+    TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, value);
+
+    TEST_ASSERT_FALSE(AtoConfigConsole::parseUint32("4294967296", value));
+    TEST_ASSERT_FALSE(AtoConfigConsole::parseUint32("999999999999999999999999999999999", value));
+    TEST_ASSERT_FALSE(AtoConfigConsole::parseUint32("-1", value));
+    TEST_ASSERT_FALSE(AtoConfigConsole::parseUint32("+1", value));
+    TEST_ASSERT_FALSE(AtoConfigConsole::parseUint32("12abc", value));
+    TEST_ASSERT_FALSE(AtoConfigConsole::parseUint32("", value));
+    TEST_ASSERT_FALSE(AtoConfigConsole::parseUint32(nullptr, value));
+}
+
+void test_console_numeric_parse_failure_has_no_side_effect()
+{
+    AtoConfig active = makeConfig(701, 702, 90000);
+    const AtoConfig defaults = active;
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    consoleApplyCalls = 0;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    char overflow[] = "SET SLEEP_MAX_MS 4294967296";
+    TEST_ASSERT_FALSE(console.executeLine(overflow));
+    TEST_ASSERT_EQUAL_UINT32(701, active.sleepMaxDurationMs);
+    TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
+
+    char malformed[] = "SET SLEEP_MAX_MS 12abc";
+    TEST_ASSERT_FALSE(console.executeLine(malformed));
+    TEST_ASSERT_EQUAL_UINT32(701, active.sleepMaxDurationMs);
+    TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
+}
+
+void test_console_accepts_full_uint32_for_unbounded_timer_field()
+{
+    AtoConfig active = makeConfig(711, 712, 90000);
+    const AtoConfig defaults = active;
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    consoleApplyCalls = 0;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    char command[] = "SET SLEEP_MAX_MS 4294967295";
+    TEST_ASSERT_TRUE(console.executeLine(command));
+    TEST_ASSERT_EQUAL_UINT32(UINT32_MAX, active.sleepMaxDurationMs);
+    TEST_ASSERT_EQUAL_UINT8(1, consoleApplyCalls);
+}
+
+void test_console_strict_arity_rejects_extra_arguments_without_side_effects()
+{
+    AtoConfig active = makeConfig(721, 722, 90000);
+    const AtoConfig defaults = makeConfig(731, 732, 100000);
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    consoleApplyCalls = 0;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    AtoConfig saved = makeConfig(741, 742, 110000);
+    TEST_ASSERT_TRUE(AtoConfigStore::save(saved));
+    AtoConfig eepromBefore = readRawConfigFromEeprom();
+
+    char getExtra[] = "GET extra";
+    TEST_ASSERT_FALSE(console.executeLine(getExtra));
+
+    char saveExtra[] = "SAVE extra";
+    TEST_ASSERT_FALSE(console.executeLine(saveExtra));
+    AtoConfig eepromAfter = readRawConfigFromEeprom();
+    TEST_ASSERT_EQUAL_MEMORY(&eepromBefore, &eepromAfter, sizeof(AtoConfig));
+
+    char resetExtra[] = "RESET extra";
+    TEST_ASSERT_FALSE(console.executeLine(resetExtra));
+    TEST_ASSERT_EQUAL_UINT32(721, active.sleepMaxDurationMs);
+
+    char traceExtra[] = "TRACE ON extra";
+    TEST_ASSERT_FALSE(console.executeLine(traceExtra));
+    TEST_ASSERT_FALSE(traceEnabled);
+    TEST_ASSERT_FALSE(traceVerbose);
+
+    char setExtra[] = "SET PUMP_MAX_ON_MS 5000 extra";
+    TEST_ASSERT_FALSE(console.executeLine(setExtra));
+    TEST_ASSERT_EQUAL_UINT32(90000, active.pumpMaxOnDurationMs);
+    TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
+}
+
+void test_console_valid_command_forms_still_work()
+{
+    AtoConfig active = makeConfig(751, 752, 90000);
+    const AtoConfig defaults = makeConfig(761, 762, 100000);
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    consoleApplyCalls = 0;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    char help[] = "HELP";
+    TEST_ASSERT_TRUE(console.executeLine(help));
+
+    char get[] = "GET";
+    TEST_ASSERT_TRUE(console.executeLine(get));
+
+    char set[] = "SET PUMP_MAX_ON_MS 5000";
+    TEST_ASSERT_TRUE(console.executeLine(set));
+    TEST_ASSERT_EQUAL_UINT32(5000, active.pumpMaxOnDurationMs);
+
+    char trace[] = "TRACE ON";
+    TEST_ASSERT_TRUE(console.executeLine(trace));
+    TEST_ASSERT_TRUE(traceEnabled);
+    TEST_ASSERT_FALSE(traceVerbose);
+
+    char save[] = "SAVE";
+    TEST_ASSERT_TRUE(console.executeLine(save));
+    AtoConfig saved = readRawConfigFromEeprom();
+    TEST_ASSERT_EQUAL_UINT32(5000, saved.pumpMaxOnDurationMs);
+
+    char reset[] = "RESET";
+    TEST_ASSERT_TRUE(console.executeLine(reset));
+    TEST_ASSERT_EQUAL_UINT32(761, active.sleepMaxDurationMs);
+    TEST_ASSERT_EQUAL_UINT32(100000, active.pumpMaxOnDurationMs);
+}
+
+void test_console_p0_pump_bounds_regression_through_parser()
+{
+    AtoConfig active = makeConfig(771, 772, 90000);
+    const AtoConfig defaults = active;
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    consoleApplyCalls = 0;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    char zero[] = "SET PUMP_MAX_ON_MS 0";
+    TEST_ASSERT_FALSE(console.executeLine(zero));
+    char below[] = "SET PUMP_MAX_ON_MS 4999";
+    TEST_ASSERT_FALSE(console.executeLine(below));
+    char above[] = "SET PUMP_MAX_ON_MS 180001";
+    TEST_ASSERT_FALSE(console.executeLine(above));
+    TEST_ASSERT_EQUAL_UINT32(90000, active.pumpMaxOnDurationMs);
+    TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
+
+    char minValue[] = "SET PUMP_MAX_ON_MS 5000";
+    TEST_ASSERT_TRUE(console.executeLine(minValue));
+    char maxValue[] = "SET PUMP_MAX_ON_MS 180000";
+    TEST_ASSERT_TRUE(console.executeLine(maxValue));
+    TEST_ASSERT_EQUAL_UINT32(180000, active.pumpMaxOnDurationMs);
+    TEST_ASSERT_EQUAL_UINT8(2, consoleApplyCalls);
+}
+
+void test_console_other_malformed_commands_have_no_side_effects()
+{
+    AtoConfig active = makeConfig(801, 802, 90000);
+    const AtoConfig defaults = makeConfig(811, 812, 100000);
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    consoleApplyCalls = 0;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    char missingValue[] = "SET PUMP_MAX_ON_MS";
+    TEST_ASSERT_FALSE(console.executeLine(missingValue));
+
+    char unknownField[] = "SET UNKNOWN 5000";
+    TEST_ASSERT_FALSE(console.executeLine(unknownField));
+
+    char invalidTrace[] = "TRACE MAYBE";
+    TEST_ASSERT_FALSE(console.executeLine(invalidTrace));
+
+    char unknownCommand[] = "BOGUS";
+    TEST_ASSERT_FALSE(console.executeLine(unknownCommand));
+
+    TEST_ASSERT_EQUAL_UINT32(801, active.sleepMaxDurationMs);
+    TEST_ASSERT_EQUAL_UINT32(802, active.idleMaxDurationMs);
+    TEST_ASSERT_EQUAL_UINT32(90000, active.pumpMaxOnDurationMs);
+    TEST_ASSERT_FALSE(traceEnabled);
+    TEST_ASSERT_FALSE(traceVerbose);
+    TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
+}
+
+void test_console_oversized_line_is_discarded_once_and_next_command_works()
+{
+    AtoConfig active = makeConfig(781, 782, 90000);
+    const AtoConfig defaults = active;
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    consoleApplyCalls = 0;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    uint8_t overflowSignals = 0;
+    for (uint8_t i = 0; i < 48; ++i)
+    {
+        if (console.processInputChar('X') == AtoConfigConsole::INPUT_LINE_TOO_LONG)
+        {
+            overflowSignals++;
+        }
+    }
+
+    const char *suffix = "SET PUMP_MAX_ON_MS 5000";
+    while (*suffix)
+    {
+        if (console.processInputChar(*suffix++) == AtoConfigConsole::INPUT_LINE_TOO_LONG)
+        {
+            overflowSignals++;
+        }
+    }
+    TEST_ASSERT_EQUAL_UINT8(1, overflowSignals);
+    TEST_ASSERT_EQUAL_UINT32(90000, active.pumpMaxOnDurationMs);
+    TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
+
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\n'));
+
+    const char *valid = "SET PUMP_MAX_ON_MS 5000";
+    while (*valid)
+    {
+        TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*valid++));
+    }
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_LINE_READY, console.processInputChar('\n'));
+    TEST_ASSERT_TRUE(console.executeBufferedLine());
+    TEST_ASSERT_EQUAL_UINT32(5000, active.pumpMaxOnDurationMs);
+}
+
+void test_console_max_length_crlf_and_backspace_behavior()
+{
+    AtoConfig active = makeConfig(791, 792, 90000);
+    const AtoConfig defaults = active;
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    const char *help = "HELP";
+    while (*help) TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*help++));
+    for (uint8_t i = 0; i < 43; ++i)
+        TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(' '));
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_LINE_READY, console.processInputChar('\n'));
+    TEST_ASSERT_TRUE(console.executeBufferedLine());
+
+    const char *typo = "GETX";
+    while (*typo) TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*typo++));
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\b'));
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_LINE_READY, console.processInputChar('\n'));
+    TEST_ASSERT_TRUE(console.executeBufferedLine());
+
+    for (uint8_t i = 0; i < 48; ++i)
+        console.processInputChar('Y');
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\b'));
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\r'));
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\n'));
+
+    const char *get = "GET";
+    while (*get) TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*get++));
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\r'));
+    TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_LINE_READY, console.processInputChar('\n'));
+    TEST_ASSERT_TRUE(console.executeBufferedLine());
+}
+
 /* ============================================================ */
 /* Unity runner                                                   */
 /* ============================================================ */
@@ -398,6 +659,15 @@ void setup()
     RUN_TEST(test_console_valid_pump_set_is_accepted);
     RUN_TEST(test_invalid_config_cannot_reach_pump_timeout_setter);
     RUN_TEST(test_valid_config_reaches_all_runtime_setters);
+    RUN_TEST(test_parse_uint32_boundaries_and_invalid_tokens);
+    RUN_TEST(test_console_numeric_parse_failure_has_no_side_effect);
+    RUN_TEST(test_console_accepts_full_uint32_for_unbounded_timer_field);
+    RUN_TEST(test_console_strict_arity_rejects_extra_arguments_without_side_effects);
+    RUN_TEST(test_console_valid_command_forms_still_work);
+    RUN_TEST(test_console_p0_pump_bounds_regression_through_parser);
+    RUN_TEST(test_console_other_malformed_commands_have_no_side_effects);
+    RUN_TEST(test_console_oversized_line_is_discarded_once_and_next_command_works);
+    RUN_TEST(test_console_max_length_crlf_and_backspace_behavior);
 
     UNITY_END();
 }

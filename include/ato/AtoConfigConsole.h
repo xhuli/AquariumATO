@@ -5,7 +5,6 @@
 #include <Arduino.h>
 #include <Runnable.h>
 #include <ctype.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "AtoConfig.h"
@@ -53,6 +52,7 @@ namespace xal
 
             char buffer[BUFFER_SIZE];
             uint8_t bufferLen = 0;
+            bool discardUntilNewline = false;
 
         public:
             /**
@@ -95,41 +95,124 @@ namespace xal
             {
                 while (Serial.available() > 0)
                 {
-                    char c = (char)Serial.read();
+                    const InputResult result = processInputChar((char)Serial.read());
 
-                    if (c == '\r')
+                    if (result == INPUT_LINE_TOO_LONG)
                     {
-                        continue;
+                        Serial.println(F("ERROR line too long"));
                     }
-
-                    if (c == '\n')
+                    else if (result == INPUT_LINE_READY)
                     {
-                        buffer[bufferLen] = '\0';
-                        handleLine(buffer);
-                        bufferLen = 0;
-                    }
-                    else if (c == '\b' || c == 0x7F) /* backspace or DEL */
-                    {
-                        /* Remove the last buffered character, matching what
-                           the user's terminal already did on-screen. Without
-                           this, a backspace byte would just get appended
-                           literally into the buffer instead of erasing
-                           anything, silently corrupting the line. */
-                        if (bufferLen > 0)
-                        {
-                            bufferLen--;
-                        }
-                    }
-                    else if (bufferLen < (BUFFER_SIZE - 1))
-                    {
-                        buffer[bufferLen++] = c;
-                    }
-                    else
-                    {
-                        /* Line too long for the buffer: drop it silently. */
-                        bufferLen = 0;
+                        executeBufferedLine();
                     }
                 }
+            }
+
+            enum InputResult
+            {
+                INPUT_NONE,
+                INPUT_LINE_READY,
+                INPUT_LINE_TOO_LONG
+            };
+
+            /**
+             * @brief Incrementally consumes one serial character without blocking.
+             * @details Once the line buffer overflows, the complete physical line
+             * is invalidated and every following character (including backspace)
+             * is discarded until newline. Exactly the first overflow character
+             * reports INPUT_LINE_TOO_LONG; the terminating newline only restores
+             * normal input processing.
+             */
+            InputResult processInputChar(char c)
+            {
+                if (discardUntilNewline)
+                {
+                    if (c == '\n')
+                    {
+                        discardUntilNewline = false;
+                        bufferLen = 0;
+                    }
+                    return INPUT_NONE;
+                }
+
+                if (c == '\r')
+                {
+                    return INPUT_NONE;
+                }
+
+                if (c == '\n')
+                {
+                    buffer[bufferLen] = '\0';
+                    bufferLen = 0;
+                    return INPUT_LINE_READY;
+                }
+
+                if (c == '\b' || c == 0x7F)
+                {
+                    if (bufferLen > 0)
+                    {
+                        bufferLen--;
+                    }
+                    return INPUT_NONE;
+                }
+
+                if (bufferLen < (BUFFER_SIZE - 1))
+                {
+                    buffer[bufferLen++] = c;
+                    return INPUT_NONE;
+                }
+
+                discardUntilNewline = true;
+                bufferLen = 0;
+                return INPUT_LINE_TOO_LONG;
+            }
+
+            /**
+             * @brief Parses an exact decimal uint32_t without libc overflow rules.
+             */
+            static bool parseUint32(const char *text, uint32_t &result)
+            {
+                if (text == nullptr || *text == '\0')
+                {
+                    return false;
+                }
+
+                uint32_t value = 0;
+                while (*text != '\0')
+                {
+                    if (*text < '0' || *text > '9')
+                    {
+                        return false;
+                    }
+
+                    const uint8_t digit = static_cast<uint8_t>(*text - '0');
+                    if (value > (UINT32_MAX - digit) / 10U)
+                    {
+                        return false;
+                    }
+
+                    value = value * 10U + digit;
+                    ++text;
+                }
+
+                result = value;
+                return true;
+            }
+
+            /**
+             * @brief Executes one mutable newline-stripped command line.
+             * @return true only when the command grammar and requested operation
+             * are valid. Errors are printed with the ERROR prefix.
+             * This wrapper is public for deterministic Unity coverage.
+             */
+            bool executeLine(char *line)
+            {
+                return handleLine(line);
+            }
+
+            bool executeBufferedLine()
+            {
+                return handleLine(buffer);
             }
 
 
@@ -186,74 +269,92 @@ namespace xal
                 return *a == *b;
             }
 
-            void handleLine(char *line)
+            static bool hasExtraArgument()
+            {
+                return strtok(nullptr, " ") != nullptr;
+            }
+
+            bool rejectExtraArguments()
+            {
+                if (hasExtraArgument())
+                {
+                    Serial.println(F("ERROR unexpected argument"));
+                    return true;
+                }
+                return false;
+            }
+
+            bool handleLine(char *line)
             {
                 char *command = strtok(line, " ");
                 if (command == nullptr)
                 {
-                    return;
+                    return true;
                 }
 
                 if (equalsIgnoreCase(command, "HELP"))
                 {
+                    if (rejectExtraArguments()) return false;
                     printHelp();
+                    return true;
                 }
-                else if (equalsIgnoreCase(command, "GET"))
+                if (equalsIgnoreCase(command, "GET"))
                 {
+                    if (rejectExtraArguments()) return false;
                     printConfig();
+                    return true;
                 }
-                else if (equalsIgnoreCase(command, "SET"))
+                if (equalsIgnoreCase(command, "SET"))
                 {
-                    handleSet();
+                    return handleSet();
                 }
-                else if (equalsIgnoreCase(command, "SAVE"))
+                if (equalsIgnoreCase(command, "SAVE"))
                 {
+                    if (rejectExtraArguments()) return false;
                     if (AtoConfigStore::save(config))
                     {
                         Serial.println(F("Saved to EEPROM."));
+                        return true;
                     }
-                    else
-                    {
-                        Serial.println(F("ERR invalid config; not saved."));
-                    }
+                    Serial.println(F("ERROR invalid config; not saved."));
+                    return false;
                 }
-                else if (equalsIgnoreCase(command, "RESET"))
+                if (equalsIgnoreCase(command, "RESET"))
                 {
+                    if (rejectExtraArguments()) return false;
                     if (applyCallback(defaults))
                     {
                         config = defaults;
                         Serial.println(F("Reset to compiled defaults (not yet saved; use SAVE)."));
+                        return true;
                     }
-                    else
-                    {
-                        Serial.println(F("ERR compiled defaults are invalid; reset refused."));
-                    }
+                    Serial.println(F("ERROR compiled defaults are invalid; reset refused."));
+                    return false;
                 }
-                else if (equalsIgnoreCase(command, "TRACE"))
+                if (equalsIgnoreCase(command, "TRACE"))
                 {
-                    handleTrace();
+                    return handleTrace();
                 }
-                else
-                {
-                    Serial.println(F("Unknown command. Type HELP."));
-                }
+
+                Serial.println(F("ERROR unknown command. Type HELP."));
+                return false;
             }
 
             /**
              * @brief TRACE ON|ALL|OFF — toggles live FSM dispatch tracing.
-             * ON prints only calls that actually produced a transition; ALL
-             * also prints calls where no transition rule matched (useful for
-             * confirming whether an expected event even arrived); OFF is
-             * silent. This only flips two flags read by the trace callback
-             * registered in main.cpp — no reboot needed either way.
              */
-            void handleTrace()
+            bool handleTrace()
             {
                 char *mode = strtok(nullptr, " ");
                 if (mode == nullptr)
                 {
-                    Serial.println(F("Usage: TRACE ON|ALL|OFF. Type HELP."));
-                    return;
+                    Serial.println(F("ERROR usage: TRACE ON|ALL|OFF. Type HELP."));
+                    return false;
+                }
+                if (hasExtraArgument())
+                {
+                    Serial.println(F("ERROR unexpected argument"));
+                    return false;
                 }
 
                 if (equalsIgnoreCase(mode, "ON"))
@@ -261,91 +362,73 @@ namespace xal
                     traceEnabled = true;
                     traceVerbose = false;
                     Serial.println(F("Trace ON (state changes only)."));
+                    return true;
                 }
-                else if (equalsIgnoreCase(mode, "ALL"))
+                if (equalsIgnoreCase(mode, "ALL"))
                 {
                     traceEnabled = true;
                     traceVerbose = true;
                     Serial.println(F("Trace ALL (includes ignored events)."));
+                    return true;
                 }
-                else if (equalsIgnoreCase(mode, "OFF"))
+                if (equalsIgnoreCase(mode, "OFF"))
                 {
                     traceEnabled = false;
                     traceVerbose = false;
                     Serial.println(F("Trace OFF."));
+                    return true;
                 }
-                else
-                {
-                    Serial.println(F("Usage: TRACE ON|ALL|OFF. Type HELP."));
-                }
+
+                Serial.println(F("ERROR usage: TRACE ON|ALL|OFF. Type HELP."));
+                return false;
             }
 
-            /**
-             * @brief Rejects anything that isn't purely digits, so a value
-             * token corrupted by a stray control/escape byte (e.g. an arrow
-             * key pressed mid-line, which this console cannot edit around)
-             * produces a clear error instead of a silently wrong/partial
-             * number being accepted.
-             */
-            static bool isValidUnsignedNumber(const char *value)
-            {
-                if (*value == '\0')
-                {
-                    return false;
-                }
-                for (const char *p = value; *p != '\0'; p++)
-                {
-                    if (!isdigit((unsigned char)*p))
-                    {
-                        return false;
-                    }
-                }
-                return true;
-            }
-
-            void handleSet()
+            bool handleSet()
             {
                 char *name = strtok(nullptr, " ");
                 char *value = strtok(nullptr, " ");
 
                 if (name == nullptr || value == nullptr)
                 {
-                    Serial.println(F("Usage: SET <NAME> <VALUE>. Type HELP."));
-                    return;
+                    Serial.println(F("ERROR usage: SET <NAME> <VALUE>. Type HELP."));
+                    return false;
                 }
-
-                if (!isValidUnsignedNumber(value))
+                if (hasExtraArgument())
                 {
-                    Serial.println(F("Invalid value: expected digits only (e.g. 5000). "
-                                     "Did a stray key (e.g. an arrow key) get typed mid-line? "
-                                     "This console has no line editing - retype the whole line."));
-                    return;
+                    Serial.println(F("ERROR unexpected argument"));
+                    return false;
                 }
 
-                uint32_t numericValue = strtoul(value, nullptr, 10);
+                uint32_t numericValue = 0;
+                if (!parseUint32(value, numericValue))
+                {
+                    Serial.println(F("ERROR invalid value"));
+                    return false;
+                }
 
                 if (equalsIgnoreCase(name, "PUMP_MAX_ON_MS") &&
                     (numericValue < PUMP_MAX_ON_MS_MIN || numericValue > PUMP_MAX_ON_MS_MAX))
                 {
                     Serial.println(F("ERROR PUMP_MAX_ON_MS range 5000..180000"));
-                    return;
+                    return false;
                 }
 
                 if (!equalsIgnoreCase(name, "SLEEP_MAX_MS") &&
                     !equalsIgnoreCase(name, "IDLE_MAX_MS") &&
                     !equalsIgnoreCase(name, "PUMP_MAX_ON_MS"))
                 {
-                    Serial.println(F("Unknown field. Type HELP."));
-                    return;
+                    Serial.println(F("ERROR unknown field. Type HELP."));
+                    return false;
                 }
 
                 if (!trySetValue(name, numericValue))
                 {
-                    Serial.println(F("ERR invalid config; unchanged."));
-                    return;
+                    Serial.println(F("ERROR invalid config; unchanged."));
+                    return false;
                 }
 
                 Serial.println(F("Applied (not yet saved; use SAVE)."));
+                return true;
             }
 
             void printHelp()
