@@ -28,9 +28,19 @@
  * CyclicSwitchable, etc. all transitively depend on real Arduino symbols),
  * so these tests run on-target via PlatformIO's embedded Unity runner:
  *
- *     pio test -e nanoatmega328
+ *     pio test -e megaatmega2560
  *
- * ...with the Nano connected over USB. PlatformIO uploads a test firmware
+ * Use the Mega (ATmega2560, 8KB SRAM), NOT nanoatmega328: this suite
+ * constructs ~70 separate AtoActions instances (one per test case), and
+ * an unoptimized test build of that size overflows the Nano's 2KB SRAM
+ * (observed: "data size 4123 bytes is greater than maximum allowed 2048
+ * bytes"), which corrupts program state before any Unity output can be
+ * printed. The Nano was also observed to garble the serial test output
+ * even on a build that otherwise fit, for reasons unrelated to this code
+ * (likely a cable/port noise issue) — the Mega has run this suite clean
+ * on both counts.
+ *
+ * Run with the Mega connected over USB. PlatformIO uploads a test firmware
  * image and reads pass/fail results back over serial.
  *
  * PREREQUISITE
