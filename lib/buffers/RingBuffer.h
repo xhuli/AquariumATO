@@ -120,6 +120,8 @@ namespace xal
         void clear()
         {
             fill(T());
+            index = 0;
+            count = 0;
         }
 
         /**
@@ -128,6 +130,11 @@ namespace xal
          */
         T average() const
         {
+            if (count == 0)
+            {
+                return T();
+            }
+
             double sum = 0;
             for (uint8_t i = 0; i < count; i++)
             {

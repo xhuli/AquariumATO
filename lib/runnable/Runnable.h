@@ -11,6 +11,9 @@ namespace xal
      * This class provides a base for creating runnable objects in an Arduino project.
      * It follows the Object-Oriented Programming (OOP) principles.
      *
+     * Registered instances are expected to have static/global lifetime. The registry
+     * does not support deregistration, copying, or moving registered objects.
+     *
      * To use this class, you need to override the following methods:
      * - void setup()
      * - void loop()
@@ -20,15 +23,25 @@ namespace xal
     class Runnable
     {
     private:
-        static Runnable *head;
         Runnable *next;
+
+        static Runnable *&head()
+        {
+            static Runnable *instance = nullptr;
+            return instance;
+        }
+
+        Runnable(const Runnable &) = delete;
+        Runnable &operator=(const Runnable &) = delete;
+        Runnable(Runnable &&) = delete;
+        Runnable &operator=(Runnable &&) = delete;
 
     public:
         Runnable()
         {
             /* LIFO: head will point to last instance, first instance will point to null */
-            next = head; /* save pointer to previous instance */
-            head = this; /* move head to this instance */
+            next = head();      /* save pointer to previous instance */
+            head() = this;      /* move head to this instance */
         }
 
         virtual ~Runnable() = default;
@@ -39,7 +52,7 @@ namespace xal
 
         static void setupAll()
         {
-            for (Runnable *r = head; r; r = r->next)
+            for (Runnable *r = head(); r; r = r->next)
             {
                 r->setup();
             }
@@ -47,14 +60,12 @@ namespace xal
 
         static void loopAll()
         {
-            for (Runnable *r = head; r; r = r->next)
+            for (Runnable *r = head(); r; r = r->next)
             {
                 r->loop();
             }
         }
     };
-
-    Runnable *Runnable::head = nullptr; /* set initial head to nullptr */
 
 } /* namespace xal */
 

@@ -58,16 +58,13 @@ namespace
     }
 
     /**
-     * @brief Builds a fresh, wired-up LiquidLevelSensor for a test. The pin
-     * number is a placeholder (never used, since these tests only call
-     * process(), never setup()/loop()).
+     * @brief Wires callbacks on a sensor constructed directly in its final
+     * storage location.
      */
-    LiquidLevelSensor makeSensor(uint32_t pushIntervalMs, uint8_t initialReading)
+    void wireSensor(LiquidLevelSensor &sensor)
     {
-        LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, pushIntervalMs, initialReading);
         sensor.setIsTriggeredCallback(onTriggered);
         sensor.setNotTriggeredCallback(onNotTriggered);
-        return sensor;
     }
 
     /**
@@ -90,7 +87,8 @@ namespace
 void test_single_noise_spike_does_not_change_debounced_state()
 {
     resetCounters();
-    LiquidLevelSensor sensor = makeSensor(PUSH_INTERVAL_MS, LOW);
+    LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
+    wireSensor(sensor);
 
     /* One glitchy HIGH reading among 15 still-LOW buffered samples: a
        clear minority, must not flip the debounced state. */
@@ -104,7 +102,8 @@ void test_single_noise_spike_does_not_change_debounced_state()
 void test_minority_noise_burst_does_not_flip_debounced_state()
 {
     resetCounters();
-    LiquidLevelSensor sensor = makeSensor(PUSH_INTERVAL_MS, LOW);
+    LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
+    wireSensor(sensor);
 
     /* 6 HIGH readings against 10 remaining LOW samples in the 16-window:
        still a clear minority (sum=6, round(6/16)=0). */
@@ -118,7 +117,8 @@ void test_minority_noise_burst_does_not_flip_debounced_state()
 void test_sustained_new_reading_fires_correct_callback()
 {
     resetCounters();
-    LiquidLevelSensor sensor = makeSensor(PUSH_INTERVAL_MS, LOW);
+    LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
+    wireSensor(sensor);
 
     /* A full window of consistent HIGH readings is a clear majority and
        must fire isTriggeredCallback, since PIN_STATE_WHEN_PRESENT == HIGH. */
@@ -136,7 +136,8 @@ void test_sustained_new_reading_fires_correct_callback()
 void test_state_unchanged_before_interval_does_not_refire()
 {
     resetCounters();
-    LiquidLevelSensor sensor = makeSensor(PUSH_INTERVAL_MS, LOW);
+    LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
+    wireSensor(sensor);
 
     feed(sensor, HIGH, 16, 0); /* stabilizes at HIGH, fires once at t=0 */
     resetCounters();           /* isolate the check below from the stabilization fire */
@@ -151,7 +152,8 @@ void test_state_unchanged_before_interval_does_not_refire()
 void test_periodic_repush_fires_after_interval_elapses()
 {
     resetCounters();
-    LiquidLevelSensor sensor = makeSensor(PUSH_INTERVAL_MS, LOW);
+    LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
+    wireSensor(sensor);
 
     feed(sensor, HIGH, 16, 0); /* stabilizes at HIGH, fires once at t=0 */
     resetCounters();
@@ -167,7 +169,8 @@ void test_periodic_repush_fires_after_interval_elapses()
 void test_periodic_repush_disabled_when_interval_is_zero()
 {
     resetCounters();
-    LiquidLevelSensor sensor = makeSensor(/* pushIntervalMs */ 0, LOW);
+    LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, /* pushIntervalMs */ 0, LOW);
+    wireSensor(sensor);
 
     feed(sensor, HIGH, 16, 0); /* stabilizes at HIGH, fires once at t=0 */
     resetCounters();
@@ -186,7 +189,8 @@ void test_periodic_repush_disabled_when_interval_is_zero()
 
 void test_isTriggered_and_isNotTriggered_helpers()
 {
-    LiquidLevelSensor sensor = makeSensor(PUSH_INTERVAL_MS, LOW);
+    LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
+    wireSensor(sensor);
 
     TEST_ASSERT_TRUE(sensor.isTriggered(HIGH));
     TEST_ASSERT_FALSE(sensor.isTriggered(LOW));

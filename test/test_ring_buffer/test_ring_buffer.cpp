@@ -32,6 +32,56 @@
 
 using xal::RingBuffer;
 
+
+/* ============================================================ */
+/* Empty-state and clear() semantics                            */
+/* ============================================================ */
+
+void test_fresh_buffer_is_empty_and_average_is_default_value()
+{
+    RingBuffer<uint8_t, 4> rb;
+
+    TEST_ASSERT_TRUE(rb.isEmpty());
+    TEST_ASSERT_FALSE(rb.isFull());
+    TEST_ASSERT_EQUAL_UINT8(0, rb.size());
+    TEST_ASSERT_EQUAL_UINT8(0, rb.average());
+}
+
+void test_clear_makes_buffer_logically_empty()
+{
+    RingBuffer<uint8_t, 4> rb;
+    rb.push(10);
+    rb.push(20);
+    rb.push(30);
+
+    rb.clear();
+
+    TEST_ASSERT_TRUE(rb.isEmpty());
+    TEST_ASSERT_FALSE(rb.isFull());
+    TEST_ASSERT_EQUAL_UINT8(0, rb.size());
+    TEST_ASSERT_EQUAL_UINT8(0, rb.average());
+}
+
+void test_push_after_clear_behaves_like_fresh_buffer()
+{
+    RingBuffer<uint8_t, 4> rb;
+    rb.fill(99);
+    rb.clear();
+
+    rb.push(7);
+
+    TEST_ASSERT_FALSE(rb.isEmpty());
+    TEST_ASSERT_EQUAL_UINT8(1, rb.size());
+    TEST_ASSERT_EQUAL_UINT8(7, rb.get(0));
+    TEST_ASSERT_EQUAL_UINT8(7, rb.average());
+
+    rb.push(9);
+    TEST_ASSERT_EQUAL_UINT8(2, rb.size());
+    TEST_ASSERT_EQUAL_UINT8(7, rb.get(0));
+    TEST_ASSERT_EQUAL_UINT8(9, rb.get(1));
+    TEST_ASSERT_EQUAL_UINT8(8, rb.average());
+}
+
 /* ============================================================ */
 /* Not-yet-full buffer: physical position == logical position   */
 /* since no wraparound has occurred yet.                        */
@@ -167,6 +217,9 @@ void setup()
 
     UNITY_BEGIN();
 
+    RUN_TEST(test_fresh_buffer_is_empty_and_average_is_default_value);
+    RUN_TEST(test_clear_makes_buffer_logically_empty);
+    RUN_TEST(test_push_after_clear_behaves_like_fresh_buffer);
     RUN_TEST(test_partial_fill_get_returns_values_in_push_order);
     RUN_TEST(test_partial_fill_average_is_correct);
     RUN_TEST(test_exactly_full_get_returns_values_in_push_order);

@@ -33,20 +33,19 @@ namespace
         fireCount = 0;
     }
 
-    Timer makeTimer(uint32_t durationMs, bool autoRestart)
+    void configureTimer(Timer &timer, uint32_t durationMs, bool autoRestart)
     {
-        Timer timer;
         timer.setDurationMs(durationMs);
         timer.setAutoRestart(autoRestart);
         timer.setCallback(onFire);
-        return timer;
     }
 } // namespace
 
 void test_timer_does_nothing_while_off()
 {
     resetCounters();
-    Timer timer = makeTimer(1000, false);
+    Timer timer;
+    configureTimer(timer, 1000, false);
 
     /* Never turned on -- process() must be a no-op regardless of elapsed time. */
     timer.process(5000);
@@ -58,7 +57,8 @@ void test_timer_does_nothing_while_off()
 void test_timer_fires_and_turns_off_when_elapsed_without_autoRestart()
 {
     resetCounters();
-    Timer timer = makeTimer(1000, false);
+    Timer timer;
+    configureTimer(timer, 1000, false);
 
     timer.setOn(0);
 
@@ -74,7 +74,8 @@ void test_timer_fires_and_turns_off_when_elapsed_without_autoRestart()
 void test_timer_autoRestarts_and_fires_again_each_interval()
 {
     resetCounters();
-    Timer timer = makeTimer(1000, true);
+    Timer timer;
+    configureTimer(timer, 1000, true);
 
     timer.setOn(0);
 
@@ -93,7 +94,8 @@ void test_timer_autoRestarts_and_fires_again_each_interval()
 void test_timer_manual_setOff_cancels_pending_fire()
 {
     resetCounters();
-    Timer timer = makeTimer(500, false);
+    Timer timer;
+    configureTimer(timer, 500, false);
 
     timer.setOn(0);
     timer.setOff(); /* manually stopped before the duration elapses */

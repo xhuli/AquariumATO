@@ -66,16 +66,13 @@ namespace
     }
 
     /**
-     * @brief Builds a fresh, wired-up PushButton for a test. The pin number
-     * is a placeholder (never used, since these tests only call process(),
-     * never setup()/loop()).
+     * @brief Wires callbacks on a button constructed directly in its final
+     * storage location.
      */
-    PushButton makeButton()
+    void wireButton(PushButton &button)
     {
-        PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
         button.setShortPressCallback(onShortPress);
         button.setLongPressCallback(onLongPress);
-        return button;
     }
 
     /**
@@ -98,7 +95,8 @@ namespace
 void test_single_noise_spike_does_not_register_as_pressed()
 {
     resetCounters();
-    PushButton button = makeButton();
+    PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
+    wireButton(button);
 
     /* One glitchy HIGH reading among 15 still-LOW buffered samples: a
        clear minority, should not flip the debounced state at all. The old
@@ -114,7 +112,8 @@ void test_single_noise_spike_does_not_register_as_pressed()
 void test_minority_noise_burst_does_not_flip_debounced_state()
 {
     resetCounters();
-    PushButton button = makeButton();
+    PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
+    wireButton(button);
 
     /* 6 HIGH readings against 10 remaining LOW samples in the 16-window:
        still a clear minority (sum=6, round(6/16)=0), so the debounced
@@ -129,7 +128,8 @@ void test_minority_noise_burst_does_not_flip_debounced_state()
 void test_sustained_signal_does_flip_debounced_state()
 {
     resetCounters();
-    PushButton button = makeButton();
+    PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
+    wireButton(button);
 
     /* A full window of consistent HIGH readings is a clear, unambiguous
        majority and must register as pressed (no callback fires on the
@@ -149,7 +149,8 @@ void test_sustained_signal_does_flip_debounced_state()
 void test_short_press_fires_short_callback()
 {
     resetCounters();
-    PushButton button = makeButton();
+    PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
+    wireButton(button);
 
     feed(button, HIGH, 16, 0);    /* press at t=0 */
     feed(button, LOW, 16, 500);   /* release at t=500 (> debounce, < long-press) */
@@ -162,7 +163,8 @@ void test_short_press_fires_short_callback()
 void test_long_press_fires_long_callback()
 {
     resetCounters();
-    PushButton button = makeButton();
+    PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
+    wireButton(button);
 
     feed(button, HIGH, 16, 0);     /* press at t=0 */
     feed(button, LOW, 16, 4000);   /* release at t=4000 (> long-press threshold) */
@@ -175,7 +177,8 @@ void test_long_press_fires_long_callback()
 void test_press_shorter_than_debounce_fires_no_callback()
 {
     resetCounters();
-    PushButton button = makeButton();
+    PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
+    wireButton(button);
 
     feed(button, HIGH, 16, 0);    /* press at t=0 */
     feed(button, LOW, 16, 100);   /* release at t=100 (<= debounce of 160: too short, ignored) */

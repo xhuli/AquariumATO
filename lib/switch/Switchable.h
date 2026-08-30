@@ -33,18 +33,6 @@ namespace xal
             return pinValueWhenSwitchStateOn == HIGH ? LOW : HIGH;
         }
 
-        /**
-         * @brief Gets the pin value for the specified state.
-         * @param state The state to get the pin value for.
-         * @return The corresponding pin value for the given switch state.
-         */
-        uint8_t getPinValueForSwitchState(SwitchState state)
-        {
-            return AbstractSwitchable::isOn()
-                       ? getPinValueWhenSwitchStateOn()
-                       : getPinValueWhenSwitchStateOff();
-        }
-
     public:
         Switchable(uint8_t pin, uint8_t pinValueWhenSwitchStateOn)
             : AbstractSwitchable(SwitchState::Off), pin(pin), pinValueWhenSwitchStateOn(pinValueWhenSwitchStateOn)
