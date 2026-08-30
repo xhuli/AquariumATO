@@ -1,4 +1,6 @@
 #include "ato/AtoActions.h"
+#include "ato/AtoConfig.h"
+#include "ato/AtoConfigConsole.h"
 #include "ato/AtoFsm.h"
 
 #include <Arduino.h>
@@ -29,10 +31,10 @@ namespace ato
         constexpr uint8_t NormalLiquidLevelSensor = PIN_A0; /* 14 */
 
 #ifdef ATO_HAS_LOW_SENSOR
-        constexpr uint8_t LowLiquidLevelSensor    = PIN_A1; /* 15 */
+        constexpr uint8_t LowLiquidLevelSensor = PIN_A1; /* 15 */
 #endif
 
-        constexpr uint8_t HighLiquidLevelSensor   = PIN_A2; /* 16 */
+        constexpr uint8_t HighLiquidLevelSensor = PIN_A2; /* 16 */
 
 #ifdef ATO_HAS_RESERVOIR_SENSOR
         constexpr uint8_t ReservoirLowLevelSensor = PIN_A3; /* 17 */
@@ -49,15 +51,23 @@ constexpr uint8_t INITIAL_READING_LOW = LOW;
 constexpr uint32_t PERIODIC_PUSH_READING_DISABLED = xal::duration::SECONDS_0;
 constexpr uint32_t PERIODIC_PUSH_READING_PERIOD = xal::duration::SECONDS_2;
 
+/* Compiled-in defaults, used to seed EEPROM the first time (or whenever
+ * EEPROM is blank/corrupt/version-mismatched). Once saved, the live values
+ * come from AtoConfig (see configureAtoConfig()) rather than these directly. */
 constexpr uint32_t SLEEP_MAX_DURATION = xal::duration::HOURS_2;
 constexpr uint32_t IDLE_MAX_DURATION = xal::duration::HOURS_6;
-
 constexpr uint32_t PUMP_MAX_ON_DURATION = xal::duration::SECONDS_90;
 
 constexpr uint32_t PUSH_BUTTON_PIN_INPUT_MODE = INPUT;        /* INPUT or INPUT_PULLUP */
 constexpr uint32_t PUSH_BUTTON_PIN_STATE_WHEN_RELEASED = LOW; /* HIGH or LOW */
 constexpr uint32_t PUSH_BUTTON_DEBOUNCE_MS = xal::duration::MILLIS_160;
 constexpr uint32_t PUSH_BUTTON_LONG_PRESS_DURATION = xal::duration::SECONDS_3;
+
+/* Forward declarations: needed before atoConfigConsole's constructor call
+ * below can take applyAtoConfig's address. Definitions live in the
+ * "Configure helper functions" section, alongside the rest of the
+ * configureX() functions, following this file's existing structure. */
+void applyAtoConfig(const xal::ato::AtoConfig &config);
 
 /* << Initialization >> */
 
@@ -115,6 +125,23 @@ xal::Timer idleTimer;
 xal::ato::AtoActions atoActions;
 xal::ato::AtoFsm atoFsm(atoActions);
 
+/* Compiled-in defaults: used to seed/self-heal EEPROM. Field order must
+ * match AtoConfig's declared order exactly (magic, version, sleepMaxDurationMs,
+ * idleMaxDurationMs, pumpMaxOnDurationMs, crc8) — magic/version/crc8 here are
+ * placeholders (0), since AtoConfigStore::save()/loadOrDefault() always stamps
+ * the real values before any EEPROM write or validity check. */
+xal::ato::AtoConfig atoConfigDefaults = {
+    /* magic */ 0,
+    /* version */ 0,
+    /* sleepMaxDurationMs */ SLEEP_MAX_DURATION,
+    /* idleMaxDurationMs */ IDLE_MAX_DURATION,
+    /* pumpMaxOnDurationMs */ PUMP_MAX_ON_DURATION,
+    /* crc8 */ 0};
+
+xal::ato::AtoConfig atoConfig; /* populated from EEPROM (or defaults) in configureAtoConfig() */
+
+xal::ato::AtoConfigConsole atoConfigConsole(atoConfig, atoConfigDefaults, applyAtoConfig);
+
 /* << Cofigure helper functions >> */
 
 void configureAtoActions() {
@@ -146,15 +173,11 @@ void configureSensors() {
 }
 
 void configureTimers() {
-    sleepTimer.setDurationMs(SLEEP_MAX_DURATION);
     sleepTimer.setCallback([]() { atoFsm.dispatch(xal::ato::Event::SleepTimeElapsed); });
-
-    idleTimer.setDurationMs(IDLE_MAX_DURATION);
     idleTimer.setCallback([]() { atoFsm.dispatch(xal::ato::Event::MaxIdleTimeElapsed); });
 }
 
 void configureWaterPump() {
-    waterPump.setMaxOnTimeMs(PUMP_MAX_ON_DURATION);
     waterPump.setOnTimeElapsedCallback([]() { atoFsm.dispatch(xal::ato::Event::DispenserOnTimeElapsed); });
     waterPump.setOff();
 }
@@ -164,19 +187,36 @@ void configurePushButton() {
     pushButton.setLongPressCallback([]() { atoFsm.dispatch(xal::ato::Event::SleepButtonIsPushed); });
 }
 
+/**
+ * @brief Loads AtoConfig from EEPROM (or seeds it with atoConfigDefaults if
+ * missing/corrupt/version-mismatched), then applies it to live hardware.
+ */
+void configureAtoConfig() {
+    atoConfig = xal::ato::AtoConfigStore::loadOrDefault(atoConfigDefaults);
+    applyAtoConfig(atoConfig);
+}
+
+/**
+ * @brief Pushes the given config's duration values into the live
+ * sleepTimer/idleTimer/waterPump objects. Called once at boot (via
+ * configureAtoConfig()) and again by AtoConfigConsole after every
+ * runtime SET/RESET, so changes take effect immediately without a reboot.
+ */
+void applyAtoConfig(const xal::ato::AtoConfig &config) {
+    sleepTimer.setDurationMs(config.sleepMaxDurationMs);
+    idleTimer.setDurationMs(config.idleMaxDurationMs);
+    waterPump.setMaxOnTimeMs(config.pumpMaxOnDurationMs);
+}
 
 void setup()
 {
-    /* Required for logging */
-    // Serial.begin(9600);
-    //     while (!Serial && !Serial.available()) {
-    // }
-    // randomSeed(analogRead(0));
-
-    /* Configure Logging */
-    // Log.begin(LOG_LEVEL_VERBOSE, &Serial);
+    /* Required for the runtime config console (GET/SET/SAVE/RESET). Safe to
+       leave enabled with nothing connected: Serial.available() just returns
+       0 and AtoConfigConsole::loop() becomes a no-op. */
+    Serial.begin(9600);
 
     /* Configure the ATO components */
+    configureAtoConfig();
     configureAtoActions();
     configureSensors();
     configureTimers();
