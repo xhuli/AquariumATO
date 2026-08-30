@@ -6,7 +6,6 @@
 #include "enums/SwitchState.h"
 
 #include <Arduino.h>
-// #include <ArduinoLog.h>
 #include <Runnable.h>
 
 namespace xal
@@ -59,13 +58,16 @@ namespace xal
 
         ~Switchable() override = default;
 
-        void doSwitch(SwitchState state) {
-            if (state == SwitchState::On) {
+        void doSwitch(SwitchState state)
+        {
+            if (state == SwitchState::On)
+            {
                 digitalWrite(pin, getPinValueWhenSwitchStateOn());
-            } else {
+            }
+            else
+            {
                 digitalWrite(pin, getPinValueWhenSwitchStateOff());
             }
-            // Log.noticeln("Swtchbl(%d).doSwitch: St=%d|%d", pin, state, SwitchState::On);
         }
 
         void setOn() override

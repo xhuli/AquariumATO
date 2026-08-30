@@ -4,7 +4,6 @@
 #include "ato/AtoFsm.h"
 
 #include <Arduino.h>
-// #include <ArduinoLog.h>
 #include <avr/wdt.h>
 
 #include <CyclicSwitchable.h>
@@ -140,7 +139,13 @@ xal::ato::AtoConfig atoConfigDefaults = {
 
 xal::ato::AtoConfig atoConfig; /* populated from EEPROM (or defaults) in configureAtoConfig() */
 
-xal::ato::AtoConfigConsole atoConfigConsole(atoConfig, atoConfigDefaults, applyAtoConfig);
+/* FSM trace toggles, flipped by AtoConfigConsole's TRACE ON/ALL/OFF command
+ * and read by printFsmTrace() below. Kept as plain globals (not part of
+ * AtoConfig) since they're a debugging aid, not a persisted setting. */
+bool traceEnabled = false;
+bool traceVerbose = false;
+
+xal::ato::AtoConfigConsole atoConfigConsole(atoConfig, atoConfigDefaults, applyAtoConfig, traceEnabled, traceVerbose);
 
 /* << Cofigure helper functions >> */
 
@@ -208,6 +213,39 @@ void applyAtoConfig(const xal::ato::AtoConfig &config) {
     waterPump.setMaxOnTimeMs(config.pumpMaxOnDurationMs);
 }
 
+/**
+ * @brief FSM trace callback, registered via atoFsm.setTraceCallback() in
+ * setup(). Prints a line only when tracing is enabled (TRACE ON/ALL from
+ * the config console); with TRACE ON, only calls that produced a real
+ * transition are shown, since dispatch() is only ever called on genuine
+ * sensor/button/timer events (never from the hot loop), so this stays
+ * sparse by construction. TRACE ALL additionally shows events that arrived
+ * but matched no rule — useful for confirming whether an expected event
+ * even reached the FSM.
+ */
+void printFsmTrace(xal::ato::State fromState, xal::ato::Event event, xal::ato::State toState, bool matched) {
+    if (!traceEnabled) {
+        return;
+    }
+    if (!matched && !traceVerbose) {
+        return;
+    }
+
+    Serial.print(millis());
+    Serial.print(F("  "));
+    Serial.print(xal::ato::stateName(fromState));
+    Serial.print(F(" + "));
+    Serial.print(xal::ato::eventName(event));
+    Serial.print(F(" -> "));
+    Serial.print(xal::ato::stateName(toState));
+
+    if (!matched) {
+        Serial.print(F("  [ignored: no matching rule]"));
+    }
+
+    Serial.println();
+}
+
 void setup()
 {
     /* Required for the runtime config console (GET/SET/SAVE/RESET). Safe to
@@ -222,6 +260,11 @@ void setup()
     configureTimers();
     configureWaterPump();
     configurePushButton();
+
+    /* Off by default (TRACE ON/ALL/OFF via the config console toggles the
+       flags this callback checks); registering it unconditionally costs
+       one function pointer and one branch per dispatch() call. */
+    atoFsm.setTraceCallback(printFsmTrace);
 
     /* Configure runnables */
     xal::Runnable::setupAll();

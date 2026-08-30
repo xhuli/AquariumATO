@@ -4,7 +4,6 @@
 
 #include "api/AbstractCyclicSwitchable.h"
 #include "api/AbstractSwitchable.h"
-// #include <ArduinoLog.h>
 #include <Timer.h>
 
 namespace xal
@@ -47,7 +46,7 @@ namespace xal
             565000                      /* idle until 10 minutes elapse from the pattern start */
         };
         static_assert(sumPattern(buzzer_reservoir_pattern) == 600000UL,
-            "buzzer_reservoir_pattern must total exactly 10 minutes (600000ms)");
+                      "buzzer_reservoir_pattern must total exactly 10 minutes (600000ms)");
 
         static constexpr uint32_t buzzer_error_pattern[12] = {
             700, 400, 700, 400, 1400, /* - - --- (3.6s) */
@@ -56,7 +55,7 @@ namespace xal
             566400                    /* idle until 10 minutes elapse from the pattern start */
         };
         static_assert(sumPattern(buzzer_error_pattern) == 600000UL,
-            "buzzer_error_pattern must total exactly 10 minutes (600000ms)");
+                      "buzzer_error_pattern must total exactly 10 minutes (600000ms)");
 
         static constexpr uint32_t buzzer_water_low_pattern[12] = {
             1400, 400, 700, 400, 700, /** --- - - (3.6s) */
@@ -66,7 +65,7 @@ namespace xal
 
         };
         static_assert(sumPattern(buzzer_water_low_pattern) == 600000UL,
-            "buzzer_water_low_pattern must total exactly 10 minutes (600000ms)");
+                      "buzzer_water_low_pattern must total exactly 10 minutes (600000ms)");
 
         static constexpr uint32_t buzzer_water_high_pattern[20] = {
             1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, /* --- --- --- --- --- (8.6s) */
@@ -75,17 +74,36 @@ namespace xal
             561400                                            /* idle until 10 minutes elapse from the pattern start */
         };
         static_assert(sumPattern(buzzer_water_high_pattern) == 600000UL,
-            "buzzer_water_high_pattern must total exactly 10 minutes (600000ms)");
+                      "buzzer_water_high_pattern must total exactly 10 minutes (600000ms)");
 
         static constexpr uint32_t buzzer_idle_for_too_long_pattern[24] = {
-            400, 1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, 1800, /* - - - - - --- (10.8s) */
-            19200,                                                       /* idle until 30 seconds elapse from the pattern start */
-            400, 1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, 1800, /* - - - - - --- (10.8s) */
-            559200,                                                      /* idle until 10 minutes elapse from the pattern start */
+            400,
+            1400,
+            400,
+            1400,
+            400,
+            1400,
+            400,
+            1400,
+            400,
+            1400,
+            1800,  /* - - - - - --- (10.8s) */
+            19200, /* idle until 30 seconds elapse from the pattern start */
+            400,
+            1400,
+            400,
+            1400,
+            400,
+            1400,
+            400,
+            1400,
+            400,
+            1400,
+            1800,   /* - - - - - --- (10.8s) */
+            559200, /* idle until 10 minutes elapse from the pattern start */
         };
         static_assert(sumPattern(buzzer_idle_for_too_long_pattern) == 600000UL,
-            "buzzer_idle_for_too_long_pattern must total exactly 10 minutes (600000ms)");
-
+                      "buzzer_idle_for_too_long_pattern must total exactly 10 minutes (600000ms)");
 
         /**
          * @class AtoActions
@@ -133,7 +151,6 @@ namespace xal
 
             void onExitState()
             {
-                // Log.noticeln("Act: onExit");
                 setOff(redLed);
                 setOff(yellowLed);
                 setOff(greenLed);
@@ -145,14 +162,12 @@ namespace xal
 
             void onEntryIdleState()
             {
-                // Log.noticeln("Act: onIdl");
                 setOn(greenLed, 2, led_blink_pattern_slow);
                 setOn(idleTimer);
             }
 
             void onEntryIdleForTooLongState()
             {
-                // Log.noticeln("Act: onIdl42Lng");
                 setOn(greenLed, 2, led_blink_pattern_slow);
                 setOn(redLed, 2, led_blink_pattern_slow);
                 setOn(buzzer, 24, buzzer_idle_for_too_long_pattern);
@@ -160,49 +175,42 @@ namespace xal
 
             void onEntryDispensingInAutoModeState()
             {
-                // Log.noticeln("Act: onDspAuto");
                 setOn(greenLed, 1, led_always_on);
                 setOn(waterDispenser);
             }
 
             void onEntryDispensingInManualModeState()
             {
-                // Log.noticeln("Act: onDspManual");
                 setOn(greenLed, 2, led_blink_pattern_fast);
                 setOn(waterDispenser);
             }
 
             void onEntryWaterLowState()
             {
-                // Log.noticeln("Act: WtrLvlLow");
                 setOn(redLed, 2, led_blink_pattern_fast);
                 setOn(buzzer, 12, buzzer_water_low_pattern);
             }
 
             void onEntryWaterHighState()
             {
-                // Log.noticeln("Act: WtrLvlHigh");
                 setOn(redLed, 2, led_blink_pattern_fast);
                 setOn(buzzer, 20, buzzer_water_high_pattern);
             }
 
             void onEntryReservoirEmptyState()
             {
-                // Log.noticeln("Act: onRE");
                 setOn(redLed, 2, led_blink_pattern_slow);
                 setOn(buzzer, 12, buzzer_reservoir_pattern);
             }
 
             void onEntrySleepingState()
             {
-                // Log.noticeln("Act: onSlp");
                 setOn(yellowLed, 2, led_blink_pattern_slow);
                 setOn(sleepTimer);
             }
 
             void onEntryErrorState()
             {
-                // Log.noticeln("Act: onErr");
                 setOn(redLed, 2, led_blink_pattern_fast);
                 setOn(buzzer, 12, buzzer_error_pattern);
             }
@@ -227,10 +235,6 @@ namespace xal
                         cyclicSwitchable->setCycleArray(patternSize, pattern);
                     }
                     cyclicSwitchable->setOn();
-                }
-                else
-                {
-                    // Log.noticeln("Act: setOn > nullptr");
                 }
             }
 

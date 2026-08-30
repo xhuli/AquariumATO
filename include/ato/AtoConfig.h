@@ -103,7 +103,7 @@ namespace xal
             static uint8_t computeCrc8(const AtoConfig &config)
             {
                 return crc8(reinterpret_cast<const uint8_t *>(&config),
-                    sizeof(AtoConfig) - sizeof(config.crc8));
+                            sizeof(AtoConfig) - sizeof(config.crc8));
             }
 
             /**

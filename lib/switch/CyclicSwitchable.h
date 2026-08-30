@@ -7,7 +7,6 @@
 #include "enums/SwitchState.h"
 
 #include <Arduino.h>
-// #include <ArduinoLog.h>
 #include <Runnable.h>
 
 namespace xal
@@ -136,7 +135,6 @@ namespace xal
                     currentIntervalIndex = (currentIntervalIndex + 1) % cycleArraySize;
                     switchable.setState(currentIntervalIndex % 2 == 0 ? SwitchState::On : SwitchState::Off);
                     lastSwitchedMs = millis();
-                    // Log.noticeln("CycSw(%d) on=%d", pin, (state == SwitchState::On));
                 }
             }
         }

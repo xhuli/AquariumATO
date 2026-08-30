@@ -2,7 +2,7 @@
 #define com_github_xhuli_arduino_ato_AtoFsm_H
 #pragma once
 
-// #include <ArduinoLog.h>
+#include <Arduino.h>
 #include "AtoActions.h"
 
 namespace xal
@@ -45,44 +45,51 @@ namespace xal
             MaxIdleTimeElapsed,
         };
 
-        /*
-        String getState(State state)
+        /**
+         * @brief Human-readable, flash-resident (PROGMEM via F()) name for a
+         * State, for use in trace/debug output. Costs no RAM — Serial.print()
+         * reads directly from flash via the returned __FlashStringHelper*.
+         */
+        inline const __FlashStringHelper *stateName(State state)
         {
             switch (state)
             {
                 default:
-                case State::Idle:                   return "Idl";
-                case State::IdleForTooLong:         return "Idl42Lng";
-                case State::DispensingInAutoMode:   return "DspAuto";
-                case State::DispensingInManualMode: return "DspManual";
-                case State::WaterLevelLow:          return "WtrLvlLow";
-                case State::WaterLevelHigh:         return "WtrLvlHigh";
-                case State::ReservoirEmpty:         return "RE";
-                case State::Sleeping:               return "Slp";
-                case State::Error:                  return "Err";
+                case State::Idle:                   return F("Idle");
+                case State::IdleForTooLong:         return F("IdleForTooLong");
+                case State::DispensingInAutoMode:   return F("DispensingInAutoMode");
+                case State::DispensingInManualMode: return F("DispensingInManualMode");
+                case State::WaterLevelLow:          return F("WaterLevelLow");
+                case State::WaterLevelHigh:         return F("WaterLevelHigh");
+                case State::ReservoirEmpty:         return F("ReservoirEmpty");
+                case State::Sleeping:               return F("Sleeping");
+                case State::Error:                  return F("Error");
             }
         }
 
-        String getEvent(Event event)
+        /**
+         * @brief Human-readable, flash-resident name for an Event. See stateName().
+         */
+        inline const __FlashStringHelper *eventName(Event event)
         {
-            switch (event) {
+            switch (event)
+            {
                 default:
-                case Event::HighLevelSensorIsTriggered:       return "HiOn";
-                case Event::HighLevelSensorNotTriggered:      return "HiOff";
-                case Event::LowLevelSensorIsTriggered:        return "LowOn";
-                case Event::LowLevelSensorNotTriggered:       return "LowOff";
-                case Event::ReservoirLevelSensorIsTriggered:  return "RsrvOn";
-                case Event::ReservoirLevelSensorNotTriggered: return "RsrvOff";
-                case Event::NormalLevelSensorIsTriggered:     return "NormOn";
-                case Event::NormalLevelSensorNotTriggered:    return "NormOff";
-                case Event::DispenseButtonIsPushed:           return "DispBtnOn";
-                case Event::SleepButtonIsPushed:              return "SleepBtnOn";
-                case Event::DispenserOnTimeElapsed:           return "DispElapsed";
-                case Event::SleepTimeElapsed:                 return "SleepElapsed";
-                case Event::MaxIdleTimeElapsed:               return "MaxIdleElapsed";
+                case Event::HighLevelSensorIsTriggered:       return F("HighLevelSensorIsTriggered");
+                case Event::HighLevelSensorNotTriggered:      return F("HighLevelSensorNotTriggered");
+                case Event::LowLevelSensorIsTriggered:        return F("LowLevelSensorIsTriggered");
+                case Event::LowLevelSensorNotTriggered:       return F("LowLevelSensorNotTriggered");
+                case Event::ReservoirLevelSensorIsTriggered:  return F("ReservoirLevelSensorIsTriggered");
+                case Event::ReservoirLevelSensorNotTriggered: return F("ReservoirLevelSensorNotTriggered");
+                case Event::NormalLevelSensorIsTriggered:     return F("NormalLevelSensorIsTriggered");
+                case Event::NormalLevelSensorNotTriggered:    return F("NormalLevelSensorNotTriggered");
+                case Event::DispenseButtonIsPushed:           return F("DispenseButtonIsPushed");
+                case Event::SleepButtonIsPushed:              return F("SleepButtonIsPushed");
+                case Event::DispenserOnTimeElapsed:           return F("DispenserOnTimeElapsed");
+                case Event::SleepTimeElapsed:                 return F("SleepTimeElapsed");
+                case Event::MaxIdleTimeElapsed:               return F("MaxIdleTimeElapsed");
             }
         }
-        // */
 
         /**
          * @brief A single (fromState, event) -> toState rule.
@@ -190,15 +197,32 @@ namespace xal
          * matches, the event is ignored — equivalent to the original implementation's
          * `default: break;` in every state's switch.
          *
+         * An optional trace callback (see setTraceCallback()) can be registered to
+         * observe every dispatch() call (fromState, event, resulting state, whether
+         * a rule matched) for debugging, without AtoFsm knowing anything about
+         * Serial or any other output mechanism — matching this project's existing
+         * "components fire callbacks, callers decide what to do with them" pattern.
+         *
          * Usage:
          * - Create an instance of AtoFsm with a reference to an AtoActions instance.
          * - Use the dispatch method to handle events and transition between states.
          */
         class AtoFsm
         {
+        public:
+            /**
+             * @brief Called by dispatch() on every event, whether or not it
+             * produced a transition. fromState/toState are the same value
+             * when matched is false (no rule fired) or when a rule mapped a
+             * state to itself (not currently possible in TRANSITION_TABLE,
+             * but the callback signature doesn't assume otherwise).
+             */
+            typedef void (*TraceCallback)(State fromState, Event event, State toState, bool matched);
+
         private:
             State state = State::Idle;
             AtoActions &atoActions;
+            TraceCallback traceCallback = nullptr;
 
         public:
             explicit AtoFsm(AtoActions &atoActions)
@@ -216,26 +240,39 @@ namespace xal
                 return state;
             }
 
+            /**
+             * @brief Registers a callback invoked on every dispatch() call.
+             * Pass nullptr to disable tracing. See TraceCallback for details.
+             */
+            void setTraceCallback(TraceCallback callback)
+            {
+                traceCallback = callback;
+            }
+
             void dispatch(Event event)
             {
-                // Log.noticeln("AFsm St=%s Ev=%s", getState(state).c_str(), getEvent(event).c_str());
+                State fromState = state;
+                bool matched = false;
 
                 for (const auto &transition : TRANSITION_TABLE)
                 {
                     if (transition.fromState == state && transition.event == event)
                     {
                         transit(transition.toState);
-                        return;
+                        matched = true;
+                        break;
                     }
                 }
-                /* No matching (state, event) row: ignore the event, same as the
-                   original switch's default: break; in every state. */
+
+                if (traceCallback != nullptr)
+                {
+                    traceCallback(fromState, event, state, matched);
+                }
             }
 
         private:
             void enter(State actOnState)
             {
-                // Log.noticeln("AFsm enter=%s", getState(actOnState).c_str());
                 switch (actOnState)
                 {
                     case State::Idle:

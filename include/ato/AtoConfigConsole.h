@@ -48,6 +48,8 @@ namespace xal
             AtoConfig &config;
             const AtoConfig &defaults;
             ApplyCallback applyCallback;
+            bool &traceEnabled;
+            bool &traceVerbose;
 
             char buffer[BUFFER_SIZE];
             uint8_t bufferLen = 0;
@@ -60,9 +62,23 @@ namespace xal
              * successful SET/RESET, so changes take effect immediately without
              * requiring a reboot. Typically pushes values into Timer/TimedSwitchable
              * setters.
+             * @param traceEnabled Reference to a flag toggled by TRACE ON/OFF,
+             * read by the FSM trace callback registered in main.cpp.
+             * @param traceVerbose Reference to a flag toggled by TRACE ALL/ON,
+             * distinguishing "log every dispatch() call" from "log only calls
+             * that actually produced a transition".
              */
-            AtoConfigConsole(AtoConfig &config, const AtoConfig &defaults, ApplyCallback applyCallback)
-                : config(config), defaults(defaults), applyCallback(applyCallback)
+            AtoConfigConsole(
+                AtoConfig &config,
+                const AtoConfig &defaults,
+                ApplyCallback applyCallback,
+                bool &traceEnabled,
+                bool &traceVerbose)
+                : config(config),
+                  defaults(defaults),
+                  applyCallback(applyCallback),
+                  traceEnabled(traceEnabled),
+                  traceVerbose(traceVerbose)
             {
             }
 
@@ -162,9 +178,54 @@ namespace xal
                     applyCallback(config);
                     Serial.println(F("Reset to compiled defaults (not yet saved; use SAVE)."));
                 }
+                else if (equalsIgnoreCase(command, "TRACE"))
+                {
+                    handleTrace();
+                }
                 else
                 {
                     Serial.println(F("Unknown command. Type HELP."));
+                }
+            }
+
+            /**
+             * @brief TRACE ON|ALL|OFF — toggles live FSM dispatch tracing.
+             * ON prints only calls that actually produced a transition; ALL
+             * also prints calls where no transition rule matched (useful for
+             * confirming whether an expected event even arrived); OFF is
+             * silent. This only flips two flags read by the trace callback
+             * registered in main.cpp — no reboot needed either way.
+             */
+            void handleTrace()
+            {
+                char *mode = strtok(nullptr, " ");
+                if (mode == nullptr)
+                {
+                    Serial.println(F("Usage: TRACE ON|ALL|OFF. Type HELP."));
+                    return;
+                }
+
+                if (equalsIgnoreCase(mode, "ON"))
+                {
+                    traceEnabled = true;
+                    traceVerbose = false;
+                    Serial.println(F("Trace ON (state changes only)."));
+                }
+                else if (equalsIgnoreCase(mode, "ALL"))
+                {
+                    traceEnabled = true;
+                    traceVerbose = true;
+                    Serial.println(F("Trace ALL (includes ignored events)."));
+                }
+                else if (equalsIgnoreCase(mode, "OFF"))
+                {
+                    traceEnabled = false;
+                    traceVerbose = false;
+                    Serial.println(F("Trace OFF."));
+                }
+                else
+                {
+                    Serial.println(F("Usage: TRACE ON|ALL|OFF. Type HELP."));
                 }
             }
 
@@ -205,8 +266,8 @@ namespace xal
                 if (!isValidUnsignedNumber(value))
                 {
                     Serial.println(F("Invalid value: expected digits only (e.g. 5000). "
-                                      "Did a stray key (e.g. an arrow key) get typed mid-line? "
-                                      "This console has no line editing - retype the whole line."));
+                                     "Did a stray key (e.g. an arrow key) get typed mid-line? "
+                                     "This console has no line editing - retype the whole line."));
                     return;
                 }
 
@@ -242,6 +303,9 @@ namespace xal
                 Serial.println(F("  SET <NAME> <VALUE>   - change a field (applied now, not saved)"));
                 Serial.println(F("  SAVE                 - persist current config to EEPROM"));
                 Serial.println(F("  RESET                - revert to compiled defaults (not saved)"));
+                Serial.println(F("  TRACE ON             - log FSM state changes as they happen"));
+                Serial.println(F("  TRACE ALL            - also log events that produced no change"));
+                Serial.println(F("  TRACE OFF            - stop logging"));
                 Serial.println(F("Fields: SLEEP_MAX_MS, IDLE_MAX_MS, PUMP_MAX_ON_MS"));
             }
 

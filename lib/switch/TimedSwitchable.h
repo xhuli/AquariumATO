@@ -7,7 +7,6 @@
 #include "enums/SwitchState.h"
 
 #include <Arduino.h>
-// #include <ArduinoLog.h>
 #include <Runnable.h>
 
 namespace xal
@@ -91,7 +90,6 @@ namespace xal
          */
         virtual void setOnTimeElapsedCallback(Callback callback)
         {
-            // Log.noticeln("TmdSwtchbl(%d).OnTmElpsd: state=%d (On=%d)", pin, state, SwitchState::On);
             onTimeElapsedCallback = callback;
         }
 
@@ -101,7 +99,6 @@ namespace xal
          */
         virtual void setOffTimeElapsedCallback(Callback callback)
         {
-            // Log.noticeln("TmdSwtchbl(%d).OffTmElpsd: state=%d (On=%d)", pin, state, SwitchState::On);
             offTimeElapsedCallback = callback;
         }
 
