@@ -37,7 +37,7 @@ public:
      * @brief Checks if the buffer is empty.
      * @return True if the buffer is empty, false otherwise.
      */
-    bool isEmpty()
+    bool isEmpty() const
     {
         return count == 0;
     }
@@ -46,7 +46,7 @@ public:
      * @brief Checks if the buffer is full.
      * @return True if the buffer is full, false otherwise.
      */
-    bool isFull()
+    bool isFull() const
     {
         return count == N;
     }
@@ -55,7 +55,7 @@ public:
      * @brief Gets the number of elements in the buffer.
      * @return The number of elements in the buffer.
      */
-    uint8_t size()
+    uint8_t size() const
     {
         return count;
     }
@@ -64,7 +64,7 @@ public:
      * @brief Gets the maximum number of values that can be stored in the buffer.
      * @return The maximum number of values that can be stored in the buffer.
      */
-    uint8_t capacity()
+    uint8_t capacity() const
     {
         return N;
     }
@@ -87,16 +87,16 @@ public:
     }
 
     /**
-     * @brief Gets the value at the specified index.
-     * @param index The index of the value to get.
-     * @return The value at the specified index.
+     * @brief Gets the value at the specified logical index, where index 0 is
+     * the oldest currently-stored value and index (size()-1) is the newest.
+     * @param logicalIndex The logical index of the value to get, in [0, size()).
+     * @return The value at that logical position.
      */
-    T get(uint8_t index) const
+    T get(uint8_t logicalIndex) const
     {
-        if (index > count) {
-            index = (index + 1) % N;
-        }
-        return buffer[index];
+        uint8_t start = isFull() ? index : 0;
+        uint8_t physicalIndex = (start + logicalIndex) % N;
+        return buffer[physicalIndex];
     }
 
     /**
