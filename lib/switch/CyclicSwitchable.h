@@ -33,7 +33,7 @@ namespace xal
         AbstractSwitchable &switchable;
 
         uint8_t cycleArraySize = 0;
-        uint32_t *cycleArray = nullptr;
+        const uint32_t *cycleArray = nullptr;
 
         uint8_t currentIntervalIndex = 0;
         uint32_t lastSwitchedMs;
@@ -67,7 +67,7 @@ namespace xal
          * @param cycleArraySize The size of the cycle array.
          * @param cycleArray The cycle array.
          */
-        void setCycleArray(const uint8_t cycleArraySize, uint32_t *cycleArray)
+        void setCycleArray(const uint8_t cycleArraySize, const uint32_t *cycleArray)
         {
             this->cycleArraySize = cycleArraySize;
             this->cycleArray = cycleArray;

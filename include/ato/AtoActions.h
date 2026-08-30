@@ -13,6 +13,81 @@ namespace xal
     {
 
         /**
+         * @brief Recursive constexpr sum, valid under strict C++11 constexpr
+         * rules (single return statement, no loops/mutable locals) so this
+         * compiles regardless of whether the toolchain defaults to
+         * -std=gnu++11 or a more permissive later standard.
+         */
+        template <size_t N>
+        constexpr uint32_t sumPatternFrom(const uint32_t (&pattern)[N], size_t startIndex)
+        {
+            return (startIndex >= N) ? 0 : (pattern[startIndex] + sumPatternFrom(pattern, startIndex + 1));
+        }
+
+        template <size_t N>
+        constexpr uint32_t sumPattern(const uint32_t (&pattern)[N])
+        {
+            return sumPatternFrom(pattern, 0);
+        }
+
+        /* File-scope (not class-member) so all AtoActions instances share one
+         * copy, and so static_assert can check each pattern's total at compile
+         * time below. Moving these out of the class doesn't change any call
+         * site — onEntryXState() methods reference them by name exactly as
+         * before, via ordinary namespace lookup. */
+
+        static constexpr uint32_t led_always_on[1] = {1000ul};
+        static constexpr uint32_t led_blink_pattern_slow[2] = {1520, 380};
+        static constexpr uint32_t led_blink_pattern_fast[2] = {380, 380};
+
+        static constexpr uint32_t buzzer_reservoir_pattern[12] = {
+            1400, 400, 1400, 400, 1400, /* --- --- --- (5s) */
+            25000,                      /* idle until 30 seconds elapse from the pattern start */
+            1400, 400, 1400, 400, 1400, /* --- --- --- (5s) */
+            565000                      /* idle until 10 minutes elapse from the pattern start */
+        };
+        static_assert(sumPattern(buzzer_reservoir_pattern) == 600000UL,
+            "buzzer_reservoir_pattern must total exactly 10 minutes (600000ms)");
+
+        static constexpr uint32_t buzzer_error_pattern[12] = {
+            700, 400, 700, 400, 1400, /* - - --- (3.6s) */
+            26400,                    /* idle until 30 seconds elapse from the pattern start */
+            700, 400, 700, 400, 1400, /* - - --- (3.6s) */
+            566400                    /* idle until 10 minutes elapse from the pattern start */
+        };
+        static_assert(sumPattern(buzzer_error_pattern) == 600000UL,
+            "buzzer_error_pattern must total exactly 10 minutes (600000ms)");
+
+        static constexpr uint32_t buzzer_water_low_pattern[12] = {
+            1400, 400, 700, 400, 700, /** --- - - (3.6s) */
+            26400,                    /* idle until 30 seconds elapse from the pattern start */
+            1400, 400, 700, 400, 700, /** --- - - (3.6s) */
+            566400                    /* idle until 10 minutes elapse from the pattern start */
+
+        };
+        static_assert(sumPattern(buzzer_water_low_pattern) == 600000UL,
+            "buzzer_water_low_pattern must total exactly 10 minutes (600000ms)");
+
+        static constexpr uint32_t buzzer_water_high_pattern[20] = {
+            1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, /* --- --- --- --- --- (8.6s) */
+            21400,                                            /* idle until 30 seconds elapse from the pattern start */
+            1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, /* --- --- --- --- --- (8.6s) */
+            561400                                            /* idle until 10 minutes elapse from the pattern start */
+        };
+        static_assert(sumPattern(buzzer_water_high_pattern) == 600000UL,
+            "buzzer_water_high_pattern must total exactly 10 minutes (600000ms)");
+
+        static constexpr uint32_t buzzer_idle_for_too_long_pattern[24] = {
+            400, 1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, 1800, /* - - - - - --- (10.8s) */
+            19200,                                                       /* idle until 30 seconds elapse from the pattern start */
+            400, 1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, 1800, /* - - - - - --- (10.8s) */
+            559200,                                                      /* idle until 10 minutes elapse from the pattern start */
+        };
+        static_assert(sumPattern(buzzer_idle_for_too_long_pattern) == 600000UL,
+            "buzzer_idle_for_too_long_pattern must total exactly 10 minutes (600000ms)");
+
+
+        /**
          * @class AtoActions
          * @brief This class encapsulates the actions that can be performed by the Automatic Top-Off (ATO) system.
          *
@@ -41,46 +116,6 @@ namespace xal
         class AtoActions
         {
         private:
-            uint32_t led_always_on[1] = {1000ul};
-            uint32_t led_blink_pattern_slow[2] = {1520, 380};
-            uint32_t led_blink_pattern_fast[2] = {380, 380};
-
-            uint32_t buzzer_reservoir_pattern[12] = {
-                1400, 400, 1400, 400, 1400, /* --- --- --- (5s) */
-                25000,                      /* idle until 30 seconds elapse from the pattern start */
-                1400, 400, 1400, 400, 1400, /* --- --- --- (5s) */
-                565000                      /* idle until 10 minutes elapse from the pattern start */
-            };
-
-            uint32_t buzzer_error_pattern[12] = {
-                700, 400, 700, 400, 1400, /* - - --- (3.6s) */
-                26400,                    /* idle until 30 seconds elapse from the pattern start */
-                700, 400, 700, 400, 1400, /* - - --- (3.6s) */
-                566400                    /* idle until 10 minutes elapse from the pattern start */
-            };
-
-            uint32_t buzzer_water_low_pattern[12] = {
-                1400, 400, 700, 400, 700, /** --- - - (3.6s) */
-                26400,                    /* idle until 30 seconds elapse from the pattern start */
-                1400, 400, 700, 400, 700, /** --- - - (3.6s) */
-                566400                    /* idle until 10 minutes elapse from the pattern start */
-
-            };
-
-            uint32_t buzzer_water_high_pattern[20] = {
-                1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, /* --- --- --- --- --- (8.6s) */
-                21400,                                            /* idle until 30 seconds elapse from the pattern start */
-                1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, /* --- --- --- --- --- (8.6s) */
-                561400                                            /* idle until 10 minutes elapse from the pattern start */
-            };
-
-            uint32_t buzzer_idle_for_too_long_pattern[24] = {
-                400, 1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, 1800, /* - - - - - --- (9s) */
-                21000,                                                       /* idle until 30 seconds elapse from the pattern start */
-                400, 1400, 400, 1400, 400, 1400, 400, 1400, 400, 1400, 1800, /* - - - - - --- (9s) */
-                561000,                                                      /* idle until 10 minutes elapse from the pattern start */
-            };
-
             AbstractCyclicSwitchable *redLed = nullptr;
             AbstractCyclicSwitchable *yellowLed = nullptr;
             AbstractCyclicSwitchable *greenLed = nullptr;
@@ -183,7 +218,7 @@ namespace xal
             void setIdleTimer(Timer *idleTimer) { AtoActions::idleTimer = idleTimer; }
 
         private:
-            void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint8_t patternSize, uint32_t *pattern)
+            void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint8_t patternSize, const uint32_t *pattern)
             {
                 if (cyclicSwitchable != nullptr)
                 {
