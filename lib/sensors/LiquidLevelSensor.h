@@ -31,16 +31,21 @@ namespace xal
         uint32_t lastCallbackPushReadingMs = 0;    /**< The last time in milliseconds when the callback function was called. */
 
         RingBuffer<uint8_t, 16> buffer; /**< The buffer to store the states of the liquid level sensor. */
-        uint8_t lastState;              /**< The last state of the liquid level sensor. */
+        uint8_t lastState;              /**< The last debounced state that was pushed to a callback. */
 
-        Callback isTriggeredCallback;  /**< The callback function to be called when the liquid level sensor is triggered. */
-        Callback notTriggeredCallback; /**< The callback function to be called when the liquid level sensor is not triggered. */
+        Callback isTriggeredCallback = nullptr;  /**< The callback function to be called when the liquid level sensor is triggered. */
+        Callback notTriggeredCallback = nullptr; /**< The callback function to be called when the liquid level sensor is not triggered. */
 
-        bool hasElapsed(uint32_t durationMs)
+        /**
+         * @brief Checks whether durationMs has elapsed since lastCallbackPushReadingMs,
+         * relative to the given current time. Returns false unconditionally when
+         * periodic pushing is disabled (pushReadingToCallbackMs == 0).
+         */
+        bool hasElapsed(uint32_t nowMs, uint32_t durationMs) const
         {
             if (pushReadingToCallbackMs > 0)
             {
-                return (millis() - lastCallbackPushReadingMs >= durationMs);
+                return (nowMs - lastCallbackPushReadingMs >= durationMs);
             }
             return false;
         }
@@ -72,7 +77,6 @@ namespace xal
         /**
          * @brief Sets the callback function to be called when the liquid level sensor is triggered.
          * @param callback The callback function to be called when the liquid level sensor is triggered.
-         * @return A reference to this LiquidLevelSensor object.
          */
         void setIsTriggeredCallback(Callback callback)
         {
@@ -80,21 +84,8 @@ namespace xal
         }
 
         /**
-         * @brief Calls the callback function to be called when the liquid level sensor is triggered.
-         */
-        void callIsTriggeredCallback()
-        {
-            if (isTriggeredCallback != nullptr)
-            {
-                isTriggeredCallback();
-            }
-            lastCallbackPushReadingMs = millis();
-        }
-
-        /**
          * @brief Sets the callback function to be called when the liquid level sensor is not triggered.
          * @param callback The callback function to be called when the liquid level sensor is not triggered.
-         * @return A reference to this LiquidLevelSensor object.
          */
         void setNotTriggeredCallback(Callback callback)
         {
@@ -102,20 +93,7 @@ namespace xal
         }
 
         /**
-         * @brief Calls the callback function to be called when the liquid level sensor is not triggered.
-         */
-        void callNotTriggeredCallback()
-        {
-            if (notTriggeredCallback != nullptr)
-            {
-                notTriggeredCallback();
-            }
-
-            lastCallbackPushReadingMs = millis();
-        }
-
-        /**
-         * @brief Gets the current state of the liquid level sensor.
+         * @brief Gets whether the given (already-debounced) state counts as triggered.
          * @return true if the liquid level sensor is triggered, false otherwise.
          */
         bool isTriggered(uint8_t state) const
@@ -124,12 +102,21 @@ namespace xal
         }
 
         /**
-         * @brief Gets the current state of the liquid level sensor.
+         * @brief Gets whether the given (already-debounced) state counts as not triggered.
          * @return true if the liquid level sensor is not triggered, false otherwise.
          */
         bool isNotTriggered(uint8_t state) const
         {
             return (state != pinStateWhenLiquidIsPresent);
+        }
+
+        /**
+         * @brief Returns the last debounced state that was pushed to a callback
+         * (HIGH or LOW). Read-only accessor added for testability.
+         */
+        uint8_t getLastState() const
+        {
+            return lastState;
         }
 
         /**
@@ -142,28 +129,51 @@ namespace xal
         }
 
         /**
+         * @brief Debounces rawReading via ring-buffer averaging and fires the
+         * appropriate callback if the debounced state changed, or if
+         * pushReadingToCallbackMs has elapsed since the last callback fire.
+         * Extracted from loop() so it can be driven directly with fabricated
+         * readings/timestamps in tests, with no hardware or wiring required.
+         * @param rawReading The raw (un-debounced) pin reading to push into
+         * the debounce buffer this call.
+         * @param nowMs The current time in milliseconds (normally millis()).
+         */
+        void process(uint8_t rawReading, uint32_t nowMs)
+        {
+            buffer.push(rawReading);
+            uint8_t state = buffer.average();
+
+            if ((lastState != state) || hasElapsed(nowMs, pushReadingToCallbackMs))
+            {
+                lastState = state;
+
+                if (isTriggered(state))
+                {
+                    if (isTriggeredCallback != nullptr)
+                    {
+                        isTriggeredCallback();
+                    }
+                }
+                else
+                {
+                    if (notTriggeredCallback != nullptr)
+                    {
+                        notTriggeredCallback();
+                    }
+                }
+
+                lastCallbackPushReadingMs = nowMs;
+            }
+        }
+
+        /**
          * @brief Called in the main Arduino loop function.
          * @details This function calls the isTriggeredCallback if the liquid level sensor is triggered,
          * otherwise it calls the notTriggeredCallback.
          */
         void loop() override
         {
-            buffer.push(digitalRead(pin));
-            uint8_t state = buffer.average();
-
-            if ((lastState != state) || hasElapsed(pushReadingToCallbackMs))
-            {
-                lastState = state;
-
-                if (isTriggered(state))
-                {
-                    callIsTriggeredCallback();
-                }
-                else
-                {
-                    callNotTriggeredCallback();
-                }
-            }
+            process(digitalRead(pin), millis());
         }
     };
 
