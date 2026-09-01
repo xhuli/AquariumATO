@@ -6,40 +6,70 @@ The tests are **on-target PlatformIO tests**. They compile into temporary test f
 
 For fresh-machine setup, install and verify PlatformIO first as described in `ToolchainBootstrap.md`.
 
-## 1. Test environments
+## 1. Test Environments
 
-The repository defines two PlatformIO environments relevant to testing:
+The project provides two PlatformIO environments that can be used for testing:
 
-| Environment | Board | Intended use |
-|---|---|---|
-| `nanoatmega328` | Arduino Nano / ATmega328P | Production firmware and most small test suites |
-| `megaatmega2560` | Arduino Mega 2560 / ATmega2560 | Development test target when a Unity image needs more SRAM |
+* `megaatmega2560` — **recommended default for testing**
+* `nanoatmega328` — production hardware target with tighter SRAM constraints
 
-Production firmware remains targeted at `nanoatmega328`. The Mega environment exists to provide extra test-time memory and is not the production target.
+### Recommended: run all tests on Mega
 
-### 1.1 Basic commands
+All test suites can be run safely on the `megaatmega2560` environment. This is the most convenient default for development and regression testing because the ATmega2560 provides enough SRAM for every suite, including the complete FSM tests.
 
-Run tests with a board connected over USB:
+Run the full test set with:
 
 ```bash
-pio test -e nanoatmega328
+pio test -e megaatmega2560
 ```
 
-For the FSM suite, use the Mega:
+Run a specific suite when needed with:
+
+```bash
+pio test -e megaatmega2560 -f <suite-name>
+```
+
+For example:
 
 ```bash
 pio test -e megaatmega2560 -f test_ato_fsm
 ```
 
-To run one small suite on the Nano:
+The Mega environment is a **test/development target only**. Production firmware must continue to be built and uploaded using `nanoatmega328`.
+
+### Testing when only a Nano is available
+
+Most test suites can also be run directly on the production `nanoatmega328` target. Because the Nano has substantially less SRAM, run the suites **individually** rather than invoking the complete test set.
+
+For example:
 
 ```bash
-pio test -e nanoatmega328 -f test_timer
+pio test -e nanoatmega328 -f test_timed_switchable
 ```
 
-PlatformIO builds and uploads a test image, then reads the Unity result over serial. Running `pio test` therefore requires a real compatible board unless a future native test environment is added.
+Run each required Nano-compatible suite in this manner, **excluding `test_ato_fsm`**.
 
-> **Important:** CMake's `UnityTests` target exists only so CLion can display and navigate the files under `test/`. It does **not** compile or run the Unity tests. Use `pio test` for actual test execution.
+Do not use the following as a general Nano regression command:
+
+```bash
+pio test -e nanoatmega328
+```
+
+An unfiltered test run also discovers `test_ato_fsm`.
+
+### Why the FSM suite requires Mega
+
+The complete `test_ato_fsm` Unity suite requires more SRAM than is reliably available on the ATmega328 used by the Nano. This is a test-harness limitation, not a limitation of the production firmware itself.
+
+Run the FSM suite on the Mega test target:
+
+```bash
+pio test -e megaatmega2560 -f test_ato_fsm
+```
+
+If only a Nano is available for testing, skip `test_ato_fsm` on that device and run the remaining suites individually.
+
+> **Note:** Passing tests on `megaatmega2560` does not replace building and validating the production firmware for `nanoatmega328`. The Nano remains the authoritative production target.
 
 ## 2. Test directory structure
 
@@ -84,7 +114,7 @@ These two rules avoid common test-placement failures:
 ## 3. Test-suite summary
 
 | Suite | Preferred target | Main coverage | Special warning |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `test_ato_config_store` | Nano | EEPROM config integrity, semantic validation, serial parser hardening, pump config application | **Writes real EEPROM** |
 | `test_ato_fsm` | **Mega** | FSM reachability and transition table | Nano SRAM is insufficient |
 | `test_cyclic_switchable` | Nano | Cyclic output pattern progression | Timing is injected deterministically |
@@ -109,23 +139,23 @@ This is the configuration safety and persistence regression suite. It covers sub
 
 ### What it verifies
 
-- blank EEPROM falls back to compiled defaults;
-- wrong magic is rejected;
-- wrong config version is rejected;
-- CRC-damaged persisted data is rejected;
-- valid persisted config is loaded correctly;
-- rejected data self-heals by writing safe defaults;
-- `PUMP_MAX_ON_MS` safety bounds are enforced;
-- `0`, below-minimum, and above-maximum pump timeouts are rejected;
-- structurally valid EEPROM data with a semantically unsafe pump timeout is rejected;
-- invalid config cannot reach the runtime pump timeout setter;
-- valid config reaches the runtime setters;
-- exact `uint32_t` serial parsing, including overflow rejection;
-- malformed console commands have no side effects;
-- strict command arity;
-- oversized serial lines are discarded completely;
-- valid commands still work after parser hardening;
-- P0 pump-safety behavior remains intact through the console parser.
+* blank EEPROM falls back to compiled defaults;
+* wrong magic is rejected;
+* wrong config version is rejected;
+* CRC-damaged persisted data is rejected;
+* valid persisted config is loaded correctly;
+* rejected data self-heals by writing safe defaults;
+* `PUMP_MAX_ON_MS` safety bounds are enforced;
+* `0`, below-minimum, and above-maximum pump timeouts are rejected;
+* structurally valid EEPROM data with a semantically unsafe pump timeout is rejected;
+* invalid config cannot reach the runtime pump timeout setter;
+* valid config reaches the runtime setters;
+* exact `uint32_t` serial parsing, including overflow rejection;
+* malformed console commands have no side effects;
+* strict command arity;
+* oversized serial lines are discarded completely;
+* valid commands still work after parser hardening;
+* P0 pump-safety behavior remains intact through the console parser.
 
 ### Destructive EEPROM warning
 
@@ -155,10 +185,10 @@ This suite verifies the state-transition behavior of `AtoFsm`.
 
 ### What it verifies
 
-- every non-Idle state used by the suite is reachable;
-- each explicit `(state, event) -> state` transition behaves as expected;
-- representative unhandled events leave the FSM in the current state;
-- alert, dispensing, sleeping, reservoir, high-water, low-water, idle-too-long, and error transitions remain stable during refactoring.
+* every non-Idle state used by the suite is reachable;
+* each explicit `(state, event) -> state` transition behaves as expected;
+* representative unhandled events leave the FSM in the current state;
+* alert, dispensing, sleeping, reservoir, high-water, low-water, idle-too-long, and error transitions remain stable during refactoring.
 
 The suite observes state transitions through `getState()`. It does not attempt to verify all `AtoActions` hardware side effects such as LED/buzzer patterns or timer switching.
 
@@ -186,10 +216,10 @@ This suite verifies `CyclicSwitchable` pattern behavior using a fake wrapped swi
 
 ### What it verifies
 
-- `setOn()` starts the pattern and activates the wrapped output;
-- the pattern advances one interval when its current interval expires;
-- the sequence wraps after the final interval;
-- no pattern progression occurs while the switchable is off.
+* `setOn()` starts the pattern and activates the wrapped output;
+* the pattern advances one interval when its current interval expires;
+* the sequence wraps after the final interval;
+* no pattern progression occurs while the switchable is off.
 
 The current implementation intentionally advances according to calls to `process()`; it is not designed to skip multiple historical intervals after a delayed loop call.
 
@@ -211,13 +241,13 @@ The sensor logic exposes a deterministic `process(rawReading, nowMs)` seam so de
 
 ### What it verifies
 
-- a single noisy reading does not change the debounced state;
-- a minority noise burst does not flip the debounced state;
-- a sustained new reading changes state and fires the correct callback;
-- unchanged state does not re-fire before the periodic callback interval;
-- periodic re-push occurs once the interval elapses;
-- periodic re-push is disabled when the interval is `0`;
-- `isTriggered()` / `isNotTriggered()` reflect the configured liquid-present polarity.
+* a single noisy reading does not change the debounced state;
+* a minority noise burst does not flip the debounced state;
+* a sustained new reading changes state and fires the correct callback;
+* unchanged state does not re-fire before the periodic callback interval;
+* periodic re-push occurs once the interval elapses;
+* periodic re-push is disabled when the interval is `0`;
+* `isTriggered()` / `isNotTriggered()` reflect the configured liquid-present polarity.
 
 Typical command:
 
@@ -239,12 +269,12 @@ Like the sensor suite, this test drives a deterministic `process(rawReading, now
 
 ### What it verifies
 
-- isolated noise does not register as a press;
-- minority noise does not change the debounced state;
-- a sustained signal does change the debounced state;
-- a valid short press fires the short-press callback;
-- a valid long press fires the long-press callback;
-- a press shorter than the debounce interval does not fire a callback.
+* isolated noise does not register as a press;
+* minority noise does not change the debounced state;
+* a sustained signal does change the debounced state;
+* a valid short press fires the short-press callback;
+* a valid long press fires the long-press callback;
+* a press shorter than the debounce interval does not fire a callback.
 
 Typical command:
 
@@ -264,16 +294,16 @@ This is the regression suite for the generic `RingBuffer<T, N>` utility used by 
 
 ### What it verifies
 
-- a fresh buffer is logically empty;
-- `average()` is safe on an empty buffer and returns `T()`;
-- `clear()` leaves the buffer logically empty;
-- pushing after `clear()` behaves like a fresh buffer;
-- partial-buffer logical ordering is correct;
-- full-buffer ordering is correct;
-- wrapped buffers return values oldest-to-newest;
-- averages remain correct after wraparound;
-- repeated wraparound remains correct;
-- `fill(value)` fills the logical capacity with that value.
+* a fresh buffer is logically empty;
+* `average()` is safe on an empty buffer and returns `T()`;
+* `clear()` leaves the buffer logically empty;
+* pushing after `clear()` behaves like a fresh buffer;
+* partial-buffer logical ordering is correct;
+* full-buffer ordering is correct;
+* wrapped buffers return values oldest-to-newest;
+* averages remain correct after wraparound;
+* repeated wraparound remains correct;
+* `fill(value)` fills the logical capacity with that value.
 
 `clear()` may also reset backing storage to a known default value for debugging, but logical validity is determined by the buffer's count/index state.
 
@@ -295,10 +325,10 @@ This suite protects the `Runnable` self-registration mechanism.
 
 ### What it verifies
 
-- `setupAll()` reaches registered objects;
-- `loopAll()` reaches registered objects;
-- the existing LIFO registration/traversal order remains stable;
-- `Runnable` registration works when derived objects are defined in multiple translation units.
+* `setupAll()` reaches registered objects;
+* `loopAll()` reaches registered objects;
+* the existing LIFO registration/traversal order remains stable;
+* `Runnable` registration works when derived objects are defined in multiple translation units.
 
 The additional `runnable_fixture_a.cpp` and `runnable_fixture_b.cpp` files are intentional. They protect against reintroducing a header-defined registry-storage problem that only appears when `Runnable.h` is used from multiple `.cpp` files.
 
@@ -322,9 +352,9 @@ This suite verifies the generic time-limited switch wrapper using a fake `Abstra
 
 ### What it verifies
 
-- an ON duration expires, switches the wrapped component off, and fires the callback;
-- an OFF duration expires, switches the component on, and fires the callback;
-- a maximum ON time of `0` means no automatic ON timeout at the utility-class level.
+* an ON duration expires, switches the wrapped component off, and fires the callback;
+* an OFF duration expires, switches the component on, and fires the callback;
+* a maximum ON time of `0` means no automatic ON timeout at the utility-class level.
 
 That final behavior is why AquariumATO's higher-level configuration validation must reject `PUMP_MAX_ON_MS=0`: `TimedSwitchable` itself deliberately treats zero as "timeout disabled."
 
@@ -346,10 +376,10 @@ This suite tests the generic timer independently of `millis()` by supplying expl
 
 ### What it verifies
 
-- an OFF timer does nothing;
-- a one-shot timer fires and turns itself off;
-- an auto-restart timer can fire repeatedly;
-- manually switching a timer off cancels a pending fire.
+* an OFF timer does nothing;
+* a one-shot timer fires and turns itself off;
+* an auto-restart timer can fire repeatedly;
+* manually switching a timer off cancels a pending fire.
 
 Typical command:
 
@@ -428,11 +458,11 @@ Follow the conventions already used by the repository rather than copying this s
 
 The existing timer, button, sensor, and switchable suites avoid unstable real-time tests by injecting timestamps or raw input values. Continue that pattern when extending the firmware:
 
-- test state transitions and outputs rather than private internals;
-- use fake switchables/components at stable interfaces;
-- inject time where practical;
-- avoid requiring jumper wires just to generate deterministic input;
-- keep hardware-specific electrical verification separate from logic tests.
+* test state transitions and outputs rather than private internals;
+* use fake switchables/components at stable interfaces;
+* inject time where practical;
+* avoid requiring jumper wires just to generate deterministic input;
+* keep hardware-specific electrical verification separate from logic tests.
 
 ### 14.2 Keep tests independent
 
@@ -462,10 +492,10 @@ Check the USB device and permissions as described in `ToolchainBootstrap.md`. On
 
 Check that:
 
-- the suite directory is under `test/`;
-- its directory name begins with `test_`;
-- the main test source and required helper `.cpp` files are inside that suite directory;
-- you are using the actual directory name with `-f`.
+* the suite directory is under `test/`;
+* its directory name begins with `test_`;
+* the main test source and required helper `.cpp` files are inside that suite directory;
+* you are using the actual directory name with `-f`.
 
 ### Duplicate `setup()` / `loop()` or production link conflicts
 
@@ -485,12 +515,12 @@ The test suite provides strong coverage of reusable timing/debounce utilities, c
 
 The current automated suites do not comprehensively prove:
 
-- real pump flow rate or dry-run behavior;
-- sensor placement and optical performance;
-- electrical noise immunity;
-- plumbing and siphon prevention;
-- real LED/buzzer visibility/audibility;
-- all `AtoActions` entry/exit hardware side effects as an integrated system;
-- long-duration endurance behavior on a complete assembled unit.
+* real pump flow rate or dry-run behavior;
+* sensor placement and optical performance;
+* electrical noise immunity;
+* plumbing and siphon prevention;
+* real LED/buzzer visibility/audibility;
+* all `AtoActions` entry/exit hardware side effects as an integrated system;
+* long-duration endurance behavior on a complete assembled unit.
 
 Use the Hardware Guide and User Guide procedures for physical-system checks, and perform a production Nano build after code changes.

@@ -179,6 +179,15 @@ A configured value of `0` is not permitted because the pump must retain a finite
 
 If Reservoir Empty occurs unexpectedly, check the reservoir level, pump inlet, tubing, pump operation, and normal-level sensor before simply clearing the alarm.
 
+### Pump Runtime Limit in Manual Mode
+
+The configured `PUMP_MAX_ON_MS` safety limit also applies when the pump is started manually.
+
+If manual dispensing remains active for the configured maximum pump-on time, the controller automatically stops the pump and returns to `Idle`. Unlike an automatic-dispense timeout, this does **not** indicate a `Reservoir Empty` condition.
+
+This provides a finite runtime limit even if manual dispensing is accidentally left active.
+The allowed `PUMP_MAX_ON_MS` range is **5,000–180,000 ms** (5 seconds to 3 minutes), inclusive; a value of `0` is not permitted.
+
 ---
 
 ## 9. Water-Level Alarms

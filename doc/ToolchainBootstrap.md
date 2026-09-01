@@ -11,7 +11,7 @@ AquariumATO is an Arduino AVR project built primarily with PlatformIO.
 The repository currently defines two PlatformIO environments:
 
 | Environment | Board | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `nanoatmega328` | Arduino Nano / ATmega328P | Production firmware and most tests |
 | `megaatmega2560` | Arduino Mega 2560 | Development/test target when a Unity suite needs more SRAM |
 
@@ -76,12 +76,19 @@ Ensure `~/.local/bin` is on your shell path. For example:
 echo 'export PATH="$PATH:$HOME/.local/bin"' >> "$HOME/.profile"
 ```
 
-Log out and back in, or reload the profile then verify:
+Reload the current shell profile so the updated `PATH` takes effect:
 
-```shell
-pio --version
-platformio --version
+```bash
+source "$HOME/.profile"
 ```
+
+Then verify that PlatformIO is available:
+
+```bash
+pio --version
+```
+
+Alternatively, log out and back in to start a new session with the updated environment.
 
 ## 4. Open the Project
 
@@ -241,9 +248,7 @@ In CLion:
 
 ### 10.2 Create the AVR toolchain
 
-Open:
-
-**Settings → Build, Execution, Deployment → Toolchains**
+Open: **Settings → Build, Execution, Deployment → Toolchains**
 
 Create a System toolchain named, for example:
 
@@ -265,9 +270,7 @@ Use the expanded absolute path if CLion does not resolve `~` in configuration fi
 
 ### 10.3 Create the Nano CMake profile
 
-Open:
-
-**Settings → Build, Execution, Deployment → CMake**
+Open: **Settings → Build, Execution, Deployment → CMake**
 
 Create a profile such as:
 
@@ -375,21 +378,53 @@ The `UnityTests` CMake target is intentionally a source/navigation target only. 
 
 ## 13. Basic Test Sanity Check
 
-Once the production firmware builds successfully, confirm the test toolchain also works.
+After setting up the toolchain, run the test suite to verify that PlatformIO can build, upload, and execute the project's tests correctly.
 
-Most suites are intended to run with:
+### Recommended: run all tests on Mega
+
+The `megaatmega2560` environment is the recommended default for testing.
+All project test suites can run safely on this target, including the complete FSM suite.
+
+With an Arduino Mega 2560 connected:
+
+```shell
+pio test -e megaatmega2560
+```
+
+A successful full run confirms that the PlatformIO installation, compiler toolchain, upload path, serial test runner, and project test configuration are working.
+
+The Mega environment is intended for development and testing only.
+The production firmware target remains `nanoatmega328`.
+
+### If only a Nano is available
+
+The Nano can run the majority of the test suites, but its ATmega328 has significantly less SRAM than the Mega. The complete `test_ato_fsm` suite does not fit reliably on this target.
+
+Run Nano-compatible suites **individually**, for example:
+
+```shell
+pio test -e nanoatmega328 -f test_timed_switchable
+```
+
+Repeat this for the required suites, excluding `test_ato_fsm`.
+
+Do not use an unfiltered:
 
 ```shell
 pio test -e nanoatmega328
 ```
 
-The FSM suite is intentionally run on the Mega target because its Unity test binary needs more SRAM than the ATmega328P provides:
+as a full Nano regression command, because PlatformIO will also discover `test_ato_fsm`.
+
+If the FSM suite must be run, use the Mega test target:
 
 ```shell
 pio test -e megaatmega2560 -f test_ato_fsm
 ```
 
-Exact suite commands, hardware caveats, and EEPROM warnings belong in `TestingGuide.md`.
+If only a Nano is available, skip the FSM suite and run the remaining suites individually.
+
+For the complete list of test suites, suite-specific requirements, EEPROM warnings, and instructions for adding tests, see [`TestingGuide.md`](TestingGuide.md).
 
 ## 14. Common Setup Problems
 
