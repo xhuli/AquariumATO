@@ -259,3 +259,8 @@ Before changing firmware behavior:
 AquariumATO is a DIY aquarium automation project and is used at your own risk. No automated top-off system should be considered completely fail-safe. Verify component ratings, wiring, sensor placement, pump behavior, plumbing, siphon prevention, enclosure protection, and electrical safety for your installation, and continue to inspect the aquarium and ATO hardware regularly.
 
 The project authors and contributors are not responsible for aquarium damage, livestock loss, water damage, electrical damage, equipment failure, or other losses resulting from the construction, modification, installation, configuration, or operation of the device, or from the use or modification of the firmware or schematics.
+
+## Acknowledgments
+
+- [paulmurraycbr — Arduino the OO Way](https://paulmurraycbr.github.io/ArduinoTheOOWay.html) — source of the `Runnable` self-registration pattern used throughout this firmware (see `lib/runnable/Runnable.h`).
+- [Nick Gammon's Gammon Forum](https://www.gammon.com.au/scripts/forum.php) — an invaluable resource for AVR/Arduino low-level details referenced throughout this project's development.
