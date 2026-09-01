@@ -39,6 +39,8 @@ The firmware pin assignments are defined in `src/main.cpp`.
 
 Do not change wiring based only on this table and then assume the firmware will adapt automatically. If a PCB signal is moved to another MCU pin, the corresponding constant in `src/main.cpp` must also be changed and the firmware rebuilt.
 
+![AquariumATO Schema](images/Schematic_AutoTopOff-191023A_2026-08-29.svg)
+
 ## 3. Power architecture
 
 ### 3.1 Input supply
@@ -357,15 +359,17 @@ Treat this as a safety fault. Stop using unattended automatic top-off until the 
 
 Current repository references:
 
-- `doc/images/AquariumAto_1.png` - assembled controller PCB;
-- `doc/images/AquariumAto_2.png` - installed level-sensor example;
-- `doc/images/AquariumAto_3.png` - PCB reference image;
-- `doc/images/AquariumAto_4.png` - schematic image;
+- [doc/images/AquariumAto_1.png](images/AquariumAto_1.png) - assembled controller PCB;
+- [doc/images/AquariumAto_2.png](images/AquariumAto_2.png) - installed level-sensor example;
+- [doc/images/AquariumAto_3.png](images/AquariumAto_3.png) - PCB reference image;
+- [doc/images/AquariumAto_4.png](images/AquariumAto_4.png) - schematic image;
+- [doc/images/Schematic_AutoTopOff-191023A_2026-08-29.svg](images/Schematic_AutoTopOff-191023A_2026-08-29.svg) - schematic image SVG;
+- [doc/BOM_AutoTopOff-191023.csv](BOM_AutoTopOff-191023.csv) - full bill of materials (designators, footprints, quantities, manufacturer/supplier part numbers, and unit pricing);
 - root `README.md` - link to the EasyEDA/OSHWHub AutoTopOff 191023A project.
 
-The reviewed schematic source is titled **Auto Top Off**, revision **1.3**, dated **2019-10-23**. The current repository archive does not contain a separate BOM CSV or schematic source file, so this guide does not invent part numbers or BOM entries beyond values visible in the schematic/PCB material.
+The reviewed schematic source is titled **Auto Top Off**, revision **1.3**, dated **2019-10-23**. The BOM CSV's own filename dates its export as **2026-08-29**; treat the BOM as the authoritative source for exact part numbers, footprints, and supplier references, and use §4's "Key BOM values" table only as a quick-reference summary of the parts most relevant to firmware/wiring troubleshooting.
 
-If the authoritative schematic source and BOM are later committed to the repository, link them here rather than duplicating their complete contents in this guide.
+If the authoritative schematic source file is later committed to the repository, link it here as well rather than duplicating its contents in this guide.
 
 💡 **Tip:** Keep a few inexpensive critical spares on hand — especially level sensors, the pump, and the AC-DC power supply. These parts are relatively low-cost, and having replacements available can significantly reduce downtime if a component fails. When ordering online, consider buying one or two extra units at the same time.
 
