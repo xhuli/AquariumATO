@@ -20,14 +20,6 @@ The controller provides:
 
 The repository contains board photographs and a rendered schematic under `doc/images/`. The original hardware project is also linked from the root `README.md` through EasyEDA/OSHWHub.
 
-### External Power Supply
-
-Power the controller from a suitable regulated DC supply connected to the board's power input. A **9–12 V DC supply rated for at least 500 mA** is appropriate for the intended hardware configuration.
-
-The required current capacity must account for the controller electronics, indicators, sensors, and the connected top-off pump. If substituting a different pump or modifying the hardware, verify its voltage and current requirements against the PCB power architecture before use.
-
-See the schematic and the power-architecture sections below for the distinction between `VCC` and `PWR`.
-
 ## 2. MCU pin map
 
 The firmware pin assignments are defined in `src/main.cpp`.

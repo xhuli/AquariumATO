@@ -220,7 +220,12 @@ The repository contains Unity test suites for:
 - `AtoFsm`
 - ATO configuration store and serial-console behavior
 
-Most tests can run on the Nano target. The FSM suite uses the Mega 2560 test target because the Unity test image needs more SRAM than the production Nano provides.
+The `megaatmega2560` environment is the **recommended default for testing**.
+All project test suites can run safely on that target, including the complete FSM suite.
+
+If only a Nano is available, run the Nano-compatible suites individually and exclude `test_ato_fsm`;
+its Unity test image requires more SRAM than the production ATmega328P provides.
+The production firmware target remains `nanoatmega328`.
 
 > **Warning:** configuration-store tests exercise real EEPROM and are destructive to the saved configuration on the test board.
 
