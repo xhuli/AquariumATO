@@ -1,29 +1,33 @@
 # AquariumATO Testing Guide
 
-This guide describes the embedded Unity test suites in AquariumATO, what each suite protects, which board to use, and the practical rules for adding and running tests.
+This guide describes how AquariumATO is tested with PlatformIO and Unity, what each test suite covers, and the conventions to follow when adding or changing tests.
 
-The tests are **on-target PlatformIO tests**. They compile into temporary test firmware, are uploaded to an AVR board, and report Unity results over the board's serial connection. The project does not currently provide a native desktop/mock-Arduino test environment.
+The tests are **on-target embedded tests**. PlatformIO compiles a temporary Unity test firmware image, uploads it to an AVR board, and reads the results over the board's serial connection. The project does not currently provide a native desktop/mock-Arduino test environment.
 
-For fresh-machine setup, install and verify PlatformIO first as described in `ToolchainBootstrap.md`.
+For fresh-machine setup, board access, and PlatformIO installation, see [`ToolchainBootstrap.md`](ToolchainBootstrap.md).
 
-## 1. Test Environments
+## 1. Test environments
 
-The project provides two PlatformIO environments that can be used for testing:
+AquariumATO defines two PlatformIO environments:
 
-* `megaatmega2560` — **recommended default for testing**
-* `nanoatmega328` — production hardware target with tighter SRAM constraints
+| Environment | Board | Role |
+| --- | --- | --- |
+| `megaatmega2560` | Arduino Mega 2560 | **Recommended default for all testing** |
+| `nanoatmega328` | Arduino Nano / ATmega328P, old bootloader | **Production firmware target** and limited fallback test target |
 
-### Recommended: run all tests on Mega
+### 1.1 Recommended default: Mega 2560
 
-All test suites can be run safely on the `megaatmega2560` environment. This is the most convenient default for development and regression testing because the ATmega2560 provides enough SRAM for every suite, including the complete FSM tests.
+Use `megaatmega2560` for normal development, targeted testing, and full regression runs.
 
-Run the full test set with:
+All current Unity suites can run safely on this environment, including the complete FSM suite. The Mega's larger SRAM also avoids having to remember which individual suites fit on the Nano.
+
+Run the complete test set with:
 
 ```bash
 pio test -e megaatmega2560
 ```
 
-Run a specific suite when needed with:
+Run one suite with:
 
 ```bash
 pio test -e megaatmega2560 -f <suite-name>
@@ -35,45 +39,63 @@ For example:
 pio test -e megaatmega2560 -f test_ato_fsm
 ```
 
-The Mega environment is a **test/development target only**. Production firmware must continue to be built and uploaded using `nanoatmega328`.
+The Mega environment is for **development and testing only**. It is not the production firmware target.
 
-### Testing when only a Nano is available
+### 1.2 If only a Nano is available
 
-Most test suites can also be run directly on the production `nanoatmega328` target. Because the Nano has substantially less SRAM, run the suites **individually** rather than invoking the complete test set.
+The Nano can run the smaller suites, but the ATmega328P has only 2 KB of SRAM. Because the complete `test_ato_fsm` Unity image exceeds that practical limit, do not use an unfiltered full-suite test command on the Nano.
 
-For example:
+If testing is limited to `nanoatmega328`:
 
-```bash
-pio test -e nanoatmega328 -f test_timed_switchable
+1. run suites **individually** with `-f`;
+2. run only the Nano-compatible suites listed below;
+3. **skip `test_ato_fsm`**;
+4. use a Mega later if the complete FSM suite must be executed.
+
+Nano-compatible suites:
+
+```text
+test_ato_config_store
+test_cyclic_switchable
+test_liquid_level_sensor
+test_push_button
+test_ring_buffer
+test_runnable
+test_timed_switchable
+test_timer
 ```
 
-Run each required Nano-compatible suite in this manner, **excluding `test_ato_fsm`**.
-
-Do not use the following as a general Nano regression command:
+Example:
 
 ```bash
-pio test -e nanoatmega328
+pio test -e nanoatmega328 -f test_ring_buffer
 ```
 
-An unfiltered test run also discovers `test_ato_fsm`.
+Do **not** use an unfiltered Nano test run as a regression command, because PlatformIO will also discover `test_ato_fsm`.
 
-### Why the FSM suite requires Mega
-
-The complete `test_ato_fsm` Unity suite requires more SRAM than is reliably available on the ATmega328 used by the Nano. This is a test-harness limitation, not a limitation of the production firmware itself.
-
-Run the FSM suite on the Mega test target:
+The FSM suite must be run on the Mega:
 
 ```bash
 pio test -e megaatmega2560 -f test_ato_fsm
 ```
 
-If only a Nano is available for testing, skip `test_ato_fsm` on that device and run the remaining suites individually.
+> **Important:** this is a test-harness SRAM limitation, not a limitation of the production AquariumATO firmware. Production firmware remains targeted at `nanoatmega328`.
 
-> **Note:** Passing tests on `megaatmega2560` does not replace building and validating the production firmware for `nanoatmega328`. The Nano remains the authoritative production target.
+### 1.3 Production validation remains Nano-specific
+
+Passing all tests on the Mega does not replace building the production firmware for the Nano.
+
+After code changes, also build the production environment:
+
+```bash
+pio run -e nanoatmega328
+```
+
+When appropriate, perform the hardware validation described in the Hardware Guide and User Guide on the actual production controller.
 
 ## 2. Test directory structure
 
-Each PlatformIO Unity suite lives in its own directory under `test/`:
+Each Unity suite lives in its own directory under `test/`:
 
 ```text
 test/
@@ -92,9 +114,11 @@ The directory name is also the suite name used with PlatformIO's `-f` filter.
 
 ### 2.1 File-placement rules
 
-Keep test-only code under `test/`, not under `src/`. A Unity test normally defines its own Arduino `setup()` and `loop()`; placing such a file in `src/` would mix it into the production firmware and conflict with the production entry points.
+Keep all test-only source under `test/`, not under `src/`.
 
-Keep helper `.cpp` files required by one suite inside that suite's directory. For example, the `Runnable` multi-translation-unit regression uses:
+A Unity test normally defines its own Arduino `setup()` and `loop()`. Placing test firmware under `src/` would mix test entry points into the production build and conflict with the production `setup()` and `loop()`.
+
+Keep helper `.cpp` files required by one suite inside that suite's directory. For example, the multi-translation-unit `Runnable` regression intentionally uses:
 
 ```text
 test/test_runnable/
@@ -104,28 +128,26 @@ test/test_runnable/
 └── test_runnable.cpp
 ```
 
-If a helper source is placed elsewhere, PlatformIO may not compile it as part of the intended suite, producing missing symbols or a test that does not actually exercise the intended multi-file condition.
+This avoids two common mistakes:
 
-These two rules avoid common test-placement failures:
-
-1. accidentally compiling test entry points into the production firmware;
-2. placing suite helper sources where PlatformIO does not include them in that test build.
+1. accidentally compiling test code into production firmware;
+2. putting helper sources where PlatformIO does not compile them as part of the intended suite.
 
 ## 3. Test-suite summary
 
-| Suite | Preferred target | Main coverage | Special warning |
-| --- | --- | --- | --- |
-| `test_ato_config_store` | Nano | EEPROM config integrity, semantic validation, serial parser hardening, pump config application | **Writes real EEPROM** |
-| `test_ato_fsm` | **Mega** | FSM reachability and transition table | Nano SRAM is insufficient |
-| `test_cyclic_switchable` | Nano | Cyclic output pattern progression | Timing is injected deterministically |
-| `test_liquid_level_sensor` | Nano | Sensor debounce, callbacks, periodic re-push | Uses fabricated readings, not physical sensor wiring |
-| `test_push_button` | Nano | Button debounce and short/long press classification | Uses fabricated readings/timestamps |
-| `test_ring_buffer` | Nano | Logical ordering, wraparound, average, clear/empty semantics | Generic utility regression suite |
-| `test_runnable` | Nano | Registration, traversal, multi-translation-unit registry behavior | Includes multiple `.cpp` fixtures intentionally |
-| `test_timed_switchable` | Nano | Max-on/max-off timeout behavior | Confirms zero max-on disables timeout at utility level |
-| `test_timer` | Nano | One-shot/auto-restart/cancel behavior | Uses injected timestamps |
+| Suite | Main coverage | Notes |
+| --- | --- | --- |
+| `test_ato_config_store` | EEPROM integrity, semantic validation, console/parser hardening, runtime config application | **Writes real EEPROM** |
+| `test_ato_fsm` | FSM reachability, legal transitions, no-match behavior | **Mega required** because the Unity image exceeds Nano SRAM |
+| `test_cyclic_switchable` | Cyclic output-pattern progression | Uses deterministic injected timestamps |
+| `test_liquid_level_sensor` | Sensor debounce, callbacks, periodic re-push | Uses fabricated readings and timestamps |
+| `test_push_button` | Button debounce, short/long press classification | Uses fabricated readings and timestamps |
+| `test_ring_buffer` | Ordering, wraparound, average, clear/empty semantics | Generic utility regression |
+| `test_runnable` | Self-registration, traversal, multi-translation-unit registry behavior | Uses multiple fixture `.cpp` files intentionally |
+| `test_timed_switchable` | Maximum ON/OFF timeout behavior | Confirms `0` disables timeout at the generic utility level |
+| `test_timer` | One-shot, auto-restart, and cancellation behavior | Uses injected timestamps |
 
-If a small suite unexpectedly exceeds Nano resources, running that suite on `megaatmega2560` is an acceptable development fallback. Do not interpret that as permission to move the production target away from the Nano.
+The following sections describe coverage and special caveats. They intentionally do not repeat board-specific commands; use the execution policy in §1 and the regression workflow in §13.
 
 ## 4. `test_ato_config_store`
 
@@ -135,43 +157,41 @@ Location:
 test/test_ato_config_store/test_ato_config_store.cpp
 ```
 
-This is the configuration safety and persistence regression suite. It covers substantially more than EEPROM serialization.
+This is the configuration safety, persistence, and serial-console regression suite.
 
 ### What it verifies
 
-* blank EEPROM falls back to compiled defaults;
-* wrong magic is rejected;
-* wrong config version is rejected;
-* CRC-damaged persisted data is rejected;
-* valid persisted config is loaded correctly;
-* rejected data self-heals by writing safe defaults;
-* `PUMP_MAX_ON_MS` safety bounds are enforced;
-* `0`, below-minimum, and above-maximum pump timeouts are rejected;
-* structurally valid EEPROM data with a semantically unsafe pump timeout is rejected;
-* invalid config cannot reach the runtime pump timeout setter;
-* valid config reaches the runtime setters;
-* exact `uint32_t` serial parsing, including overflow rejection;
-* malformed console commands have no side effects;
+The suite covers:
+
+* blank EEPROM falling back to compiled defaults;
+* rejection of incorrect magic values;
+* rejection of incompatible config versions;
+* rejection of CRC-damaged persisted data;
+* correct loading of valid persisted configuration;
+* self-healing of invalid persisted data by restoring safe defaults;
+* semantic validation of `PUMP_MAX_ON_MS`;
+* rejection of `PUMP_MAX_ON_MS=0`;
+* rejection of pump timeouts below the configured minimum;
+* rejection of pump timeouts above the configured maximum;
+* rejection of structurally valid EEPROM data containing an unsafe pump timeout;
+* prevention of invalid config values from reaching the runtime pump timeout setter;
+* propagation of valid config values to runtime setters;
+* exact `uint32_t` parsing and overflow rejection;
+* malformed console commands producing no unintended side effects;
 * strict command arity;
-* oversized serial lines are discarded completely;
-* valid commands still work after parser hardening;
-* P0 pump-safety behavior remains intact through the console parser.
+* complete discard of oversized serial input lines;
+* continued operation of valid commands after parser hardening;
+* preservation of the P0 pump-safety rules through the console path.
 
 ### Destructive EEPROM warning
 
-> **CAUTION: this suite uses the board's real EEPROM.**
+> **CAUTION: this suite writes the test board's real EEPROM.**
 
-Running it overwrites the AquariumATO configuration currently stored on the test board, including values previously saved through the serial console. The suite deliberately blanks, corrupts, and rewrites the config region to exercise recovery behavior.
+The suite intentionally blanks, corrupts, and rewrites the AquariumATO configuration region to exercise recovery and validation behavior. Running it can overwrite settings previously stored through the serial console.
 
-Do not run this test on a configured production controller unless you are prepared to restore its settings afterward.
+Do not run this suite on a configured production controller unless you are prepared to restore its settings afterward.
 
-Each test establishes its own EEPROM precondition so the suite does not depend on whatever data was left by an earlier test or power cycle.
-
-Typical command:
-
-```bash
-pio test -e nanoatmega328 -f test_ato_config_store
-```
+Each test establishes its own EEPROM precondition so the suite does not depend on whatever data was left by a previous test or power cycle.
 
 ## 5. `test_ato_fsm`
 
@@ -181,28 +201,27 @@ Location:
 test/test_ato_fsm/test_ato_fsm.cpp
 ```
 
-This suite verifies the state-transition behavior of `AtoFsm`.
+This suite verifies the state-transition behavior of `AtoFsm` and protects the transition-table design.
 
 ### What it verifies
 
-* every non-Idle state used by the suite is reachable;
-* each explicit `(state, event) -> state` transition behaves as expected;
-* representative unhandled events leave the FSM in the current state;
-* alert, dispensing, sleeping, reservoir, high-water, low-water, idle-too-long, and error transitions remain stable during refactoring.
+The suite covers:
 
-The suite observes state transitions through `getState()`. It does not attempt to verify all `AtoActions` hardware side effects such as LED/buzzer patterns or timer switching.
+* reachability of the states exercised by the test matrix;
+* every explicit `(state, event) -> state` transition represented by the suite;
+* representative unhandled events leaving the FSM in the current state;
+* alert, dispensing, sleeping, reservoir, high-water, low-water, idle-too-long, manual-dispensing, and error transitions;
+* regression protection for the table-driven dispatch behavior.
 
-### Why the Mega is required
+The suite observes state changes through `getState()`. It does not comprehensively verify `AtoActions` hardware side effects such as LED patterns, buzzer patterns, or timer switching.
 
-Use:
+### Mega-only test harness
 
-```bash
-pio test -e megaatmega2560 -f test_ato_fsm
-```
+`test_ato_fsm` must run on `megaatmega2560`.
 
-Do **not** use the Nano for this suite. The unoptimized Unity test image has been observed to exceed the Nano's 2 KB SRAM. The source notes an observed data size of about 4.1 KB. The Mega's 8 KB SRAM provides sufficient headroom for this development test.
+The complete Unity test image requires more SRAM than is reliably available on the Nano's ATmega328P. This is why the Mega environment exists as a development test target.
 
-This is a test-harness resource requirement, not a production firmware requirement.
+Do not reduce production safety, change the production board target, or restructure firmware merely to make this test image fit the Nano.
 
 ## 6. `test_cyclic_switchable`
 
@@ -212,22 +231,16 @@ Location:
 test/test_cyclic_switchable/test_cyclic_switchable.cpp
 ```
 
-This suite verifies `CyclicSwitchable` pattern behavior using a fake wrapped switchable and injected timestamps.
+This suite verifies `CyclicSwitchable` behavior using a fake wrapped switchable and injected timestamps.
 
 ### What it verifies
 
 * `setOn()` starts the pattern and activates the wrapped output;
-* the pattern advances one interval when its current interval expires;
+* the pattern advances when the active interval expires;
 * the sequence wraps after the final interval;
 * no pattern progression occurs while the switchable is off.
 
-The current implementation intentionally advances according to calls to `process()`; it is not designed to skip multiple historical intervals after a delayed loop call.
-
-Typical command:
-
-```bash
-pio test -e nanoatmega328 -f test_cyclic_switchable
-```
+The implementation advances according to calls to `process()`. It is not intended to replay every historical interval after a delayed loop call.
 
 ## 7. `test_liquid_level_sensor`
 
@@ -237,25 +250,19 @@ Location:
 test/test_liquid_level_sensor/test_liquid_level_sensor.cpp
 ```
 
-The sensor logic exposes a deterministic `process(rawReading, nowMs)` seam so debounce behavior can be tested without wiring a physical sensor.
+`LiquidLevelSensor` exposes `process(rawReading, nowMs)` so debounce and callback behavior can be exercised deterministically without physical sensor wiring.
 
 ### What it verifies
 
 * a single noisy reading does not change the debounced state;
 * a minority noise burst does not flip the debounced state;
-* a sustained new reading changes state and fires the correct callback;
+* sustained input changes the debounced state and fires the correct callback;
 * unchanged state does not re-fire before the periodic callback interval;
-* periodic re-push occurs once the interval elapses;
-* periodic re-push is disabled when the interval is `0`;
-* `isTriggered()` / `isNotTriggered()` reflect the configured liquid-present polarity.
+* periodic state re-push occurs after the configured interval;
+* periodic re-push is disabled when its interval is `0`;
+* `isTriggered()` and `isNotTriggered()` respect the configured liquid-present polarity.
 
-Typical command:
-
-```bash
-pio test -e nanoatmega328 -f test_liquid_level_sensor
-```
-
-These are logic/debounce tests. They do not prove the electrical behavior, mounting, cleanliness, or optical performance of a real level sensor; those checks belong to hardware bring-up and maintenance.
+These are firmware logic tests. They do not prove electrical behavior, sensor placement, cleanliness, optical performance, or installation quality.
 
 ## 8. `test_push_button`
 
@@ -265,22 +272,16 @@ Location:
 test/test_push_button/test_push_button.cpp
 ```
 
-Like the sensor suite, this test drives a deterministic `process(rawReading, nowMs)` method rather than relying on physical GPIO transitions.
+Like the liquid-level sensor, `PushButton` exposes a deterministic processing seam so tests can supply fabricated raw readings and timestamps.
 
 ### What it verifies
 
 * isolated noise does not register as a press;
 * minority noise does not change the debounced state;
-* a sustained signal does change the debounced state;
+* sustained input changes the debounced state;
 * a valid short press fires the short-press callback;
 * a valid long press fires the long-press callback;
-* a press shorter than the debounce interval does not fire a callback.
-
-Typical command:
-
-```bash
-pio test -e nanoatmega328 -f test_push_button
-```
+* a press shorter than the debounce requirement does not fire a callback.
 
 ## 9. `test_ring_buffer`
 
@@ -290,7 +291,7 @@ Location:
 test/test_ring_buffer/test_ring_buffer.cpp
 ```
 
-This is the regression suite for the generic `RingBuffer<T, N>` utility used by the button and liquid-level sensor debounce logic.
+This suite protects the generic `RingBuffer<T, N>` utility used by the button and liquid-level sensor debounce logic.
 
 ### What it verifies
 
@@ -300,18 +301,12 @@ This is the regression suite for the generic `RingBuffer<T, N>` utility used by 
 * pushing after `clear()` behaves like a fresh buffer;
 * partial-buffer logical ordering is correct;
 * full-buffer ordering is correct;
-* wrapped buffers return values oldest-to-newest;
+* wrapped buffers expose values from oldest to newest;
 * averages remain correct after wraparound;
 * repeated wraparound remains correct;
 * `fill(value)` fills the logical capacity with that value.
 
 `clear()` may also reset backing storage to a known default value for debugging, but logical validity is determined by the buffer's count/index state.
-
-Typical command:
-
-```bash
-pio test -e nanoatmega328 -f test_ring_buffer
-```
 
 ## 10. `test_runnable`
 
@@ -321,24 +316,18 @@ Location:
 test/test_runnable/
 ```
 
-This suite protects the `Runnable` self-registration mechanism.
+This suite protects the `Runnable` self-registration mechanism used throughout the firmware.
 
 ### What it verifies
 
 * `setupAll()` reaches registered objects;
 * `loopAll()` reaches registered objects;
 * the existing LIFO registration/traversal order remains stable;
-* `Runnable` registration works when derived objects are defined in multiple translation units.
+* registration works when derived objects are defined in multiple translation units.
 
-The additional `runnable_fixture_a.cpp` and `runnable_fixture_b.cpp` files are intentional. They protect against reintroducing a header-defined registry-storage problem that only appears when `Runnable.h` is used from multiple `.cpp` files.
+The extra `runnable_fixture_a.cpp` and `runnable_fixture_b.cpp` files are deliberate. They protect against reintroducing a header-defined registry-storage problem that only appears when `Runnable.h` is used from multiple `.cpp` files.
 
-The class is intentionally non-copyable and non-movable, and registered instances are expected to have static/global lifetime.
-
-Typical command:
-
-```bash
-pio test -e nanoatmega328 -f test_runnable
-```
+`Runnable` is intentionally non-copyable and non-movable, and registered instances are expected to have static/global lifetime.
 
 ## 11. `test_timed_switchable`
 
@@ -352,17 +341,11 @@ This suite verifies the generic time-limited switch wrapper using a fake `Abstra
 
 ### What it verifies
 
-* an ON duration expires, switches the wrapped component off, and fires the callback;
-* an OFF duration expires, switches the component on, and fires the callback;
-* a maximum ON time of `0` means no automatic ON timeout at the utility-class level.
+* an ON duration expires, switches the wrapped component off, and fires the timeout callback;
+* an OFF duration expires, switches the wrapped component on, and fires the timeout callback;
+* a maximum ON duration of `0` means no automatic ON timeout at the generic utility level.
 
-That final behavior is why AquariumATO's higher-level configuration validation must reject `PUMP_MAX_ON_MS=0`: `TimedSwitchable` itself deliberately treats zero as "timeout disabled."
-
-Typical command:
-
-```bash
-pio test -e nanoatmega328 -f test_timed_switchable
-```
+That last behavior is intentional in `TimedSwitchable`. AquariumATO's higher-level configuration validation therefore rejects `PUMP_MAX_ON_MS=0`, because allowing it for the ATO pump would disable the runtime safety cutoff.
 
 ## 12. `test_timer`
 
@@ -372,56 +355,68 @@ Location:
 test/test_timer/test_timer.cpp
 ```
 
-This suite tests the generic timer independently of `millis()` by supplying explicit timestamps.
+This suite verifies the generic timer independently of `millis()` by supplying explicit timestamps.
 
 ### What it verifies
 
 * an OFF timer does nothing;
-* a one-shot timer fires and turns itself off;
+* a one-shot timer fires and switches itself off;
 * an auto-restart timer can fire repeatedly;
 * manually switching a timer off cancels a pending fire.
 
-Typical command:
-
-```bash
-pio test -e nanoatmega328 -f test_timer
-```
-
 ## 13. Running a regression pass
 
-For a normal utility/config change, run the affected suite first, then the broader Nano test set.
+### 13.1 Normal development workflow
 
-Example targeted run:
+For ordinary development, use the Mega for both targeted tests and the full regression pass.
 
-```bash
-pio test -e nanoatmega328 -f test_ring_buffer
-```
-
-Then run the Nano-compatible suites:
+First run the suite most closely related to the change:
 
 ```bash
-pio test -e nanoatmega328
+pio test -e megaatmega2560 -f <suite-name>
 ```
 
-Because `test_ato_fsm` is too large for the Nano test image, run it separately on the Mega:
+Then run all suites:
 
 ```bash
-pio test -e megaatmega2560 -f test_ato_fsm
+pio test -e megaatmega2560
 ```
 
-When `test_ato_config_store` is included, remember that the board's stored ATO configuration will be overwritten.
-
-After tests, also build the production firmware:
+Finally, build the production firmware:
 
 ```bash
 pio run -e nanoatmega328
 ```
 
-A green Mega-only FSM suite does not replace the requirement that the real production image still builds for the Nano.
+This is the recommended default workflow because it keeps test execution simple while still validating that production firmware builds for the real Nano target.
 
-## 14. Adding a new test suite
+### 13.2 When testing is limited to a Nano
 
-Create a new directory under `test/` with a `test_` prefix:
+If no Mega is available, run only the relevant Nano-compatible suites, one at a time with `-f`.
+
+For example:
+
+```bash
+pio test -e nanoatmega328 -f test_ring_buffer
+pio test -e nanoatmega328 -f test_timer
+pio test -e nanoatmega328 -f test_timed_switchable
+```
+
+Use the Nano-compatible suite list in §1.2 and skip `test_ato_fsm`.
+
+A Nano-only pass is therefore a **partial regression pass** until the FSM suite has also been run on a Mega.
+
+### 13.3 EEPROM reminder
+
+If the regression includes `test_ato_config_store`, remember that the suite overwrites the test board's stored ATO configuration. Restore the desired settings afterward if that board will be returned to normal service.
+
+## 14. Adding or changing tests
+
+Behavior changes should be accompanied by tests whenever a deterministic seam exists or can be introduced without compromising the production design.
+
+### 14.1 Create a suite under `test/`
+
+Create a directory with a `test_` prefix:
 
 ```text
 test/test_new_feature/
@@ -452,75 +447,122 @@ void loop()
 }
 ```
 
-Follow the conventions already used by the repository rather than copying this skeleton mechanically. In particular, use deterministic seams such as `process(input, nowMs)` when production `loop()` methods otherwise read `millis()` or GPIO directly.
+Follow existing repository patterns rather than copying this skeleton mechanically.
 
-### 14.1 Prefer behavior-level seams
+### 14.2 Prefer deterministic behavior seams
 
-The existing timer, button, sensor, and switchable suites avoid unstable real-time tests by injecting timestamps or raw input values. Continue that pattern when extending the firmware:
+The timer, button, liquid-level sensor, and switchable tests avoid fragile real-time or jumper-wire tests by injecting timestamps, raw readings, or fake components.
 
-* test state transitions and outputs rather than private internals;
-* use fake switchables/components at stable interfaces;
-* inject time where practical;
-* avoid requiring jumper wires just to generate deterministic input;
-* keep hardware-specific electrical verification separate from logic tests.
+Continue that approach where practical:
 
-### 14.2 Keep tests independent
+* test observable behavior rather than private implementation details;
+* inject timestamps instead of waiting on wall-clock time;
+* inject raw input instead of requiring physical GPIO changes;
+* use fake switchables/components behind stable interfaces;
+* keep electrical validation separate from firmware logic tests;
+* avoid blocking test techniques that encourage blocking production code.
 
-Each test should establish its own starting state. This is particularly important when persistent state is involved. The EEPROM suite explicitly writes its own preconditions because EEPROM survives resets and previous test runs.
+For time-based generic `lib/` code, preserve the existing convention of exposing `process(nowMs)` or an equivalent deterministic seam rather than reading `millis()` internally when testability would otherwise be lost.
 
-Do not rely on Unity test execution order to prepare state for the next test.
+### 14.3 Keep tests independent
+
+Each test must establish its own starting conditions. Do not rely on Unity execution order to prepare state for the next test.
+
+This is especially important for EEPROM because persistent state survives reset and previous test runs. The configuration suite explicitly establishes its own EEPROM preconditions for this reason.
+
+### 14.4 FSM changes
+
+When adding a new FSM state, event, or transition:
+
+* add or update the relevant `TRANSITION_TABLE` row;
+* add tests for the intended transition;
+* add at least one no-match regression where appropriate;
+* keep the table as the single source of truth for legal transitions;
+* do not reintroduce nested switch-based dispatch.
+
+If a new state requires entry behavior, also cover the corresponding `AtoActions` implementation at the most appropriate test level.
+
+### 14.5 Timing and debounce changes
+
+When changing timing or debounce behavior, test boundary conditions explicitly:
+
+* immediately before the threshold;
+* exactly at the threshold;
+* immediately after the threshold;
+* disabled/zero behavior where zero has defined semantics;
+* rollover or repeated-cycle behavior where relevant.
+
+For LED or buzzer interval patterns, preserve the compile-time duration checks in `AtoActions` rather than relying only on runtime tests.
 
 ## 15. Troubleshooting tests
 
-### Test firmware does not fit the Nano
+### Test firmware does not fit
 
-If a development test image exceeds Nano SRAM or flash, try the Mega environment:
+If a development test image exceeds the Nano's SRAM or flash capacity, run it on the Mega test environment.
 
-```bash
-pio test -e megaatmega2560 -f <suite-name>
-```
+For `test_ato_fsm`, the Mega is already required.
 
-For `test_ato_fsm`, the Mega is already the required target.
-
-Do not "fix" a test-memory problem by changing the production board environment.
+Do not solve a test-harness memory problem by changing the production board environment.
 
 ### PlatformIO cannot find the board
 
-Check the USB device and permissions as described in `ToolchainBootstrap.md`. On Linux, verify membership in the appropriate serial-access group and that the expected `/dev/ttyUSB*` or `/dev/ttyACM*` device exists.
+Check the USB device, serial port, and permissions as described in [`ToolchainBootstrap.md`](ToolchainBootstrap.md). On Linux, verify access to the appropriate `/dev/ttyUSB*` or `/dev/ttyACM*` device.
 
 ### Suite is not discovered
 
 Check that:
 
 * the suite directory is under `test/`;
-* its directory name begins with `test_`;
-* the main test source and required helper `.cpp` files are inside that suite directory;
-* you are using the actual directory name with `-f`.
+* the directory name begins with `test_`;
+* the main test source is inside that suite directory;
+* any required helper `.cpp` files are also inside that suite directory;
+* the name passed to `-f` matches the actual suite directory.
 
 ### Duplicate `setup()` / `loop()` or production link conflicts
 
-Make sure the Unity test source was not added under `src/` and is not being compiled into the production executable. Unity test firmware and production firmware are separate builds.
+Make sure Unity test sources were not added under `src/`. Unity test firmware and production firmware are separate builds.
 
 ### Missing helper symbols
 
-For a suite using several translation units, verify all helper `.cpp` files live inside the suite directory. `test_runnable` is the reference example.
+For suites using multiple translation units, verify that all helper `.cpp` files live inside the suite directory. `test_runnable` is the reference example.
 
-### Config tests changed the device settings
+### Configuration tests changed device settings
 
-This is expected. `test_ato_config_store` deliberately writes real EEPROM. Re-enter and `SAVE` the desired runtime settings afterward, or run the production firmware so its normal config/default recovery path can establish the intended configuration.
+This is expected. `test_ato_config_store` deliberately writes real EEPROM. Restore the desired settings afterward through the production configuration workflow.
 
-## 16. What the current tests do not prove
+### Serial test runner does not start reliably
 
-The test suite provides strong coverage of reusable timing/debounce utilities, configuration safety, parser behavior, and FSM transitions, but it is not a substitute for hardware validation.
+Verify the correct board environment and serial port first. If upload succeeds but Unity output is not observed, check the PlatformIO serial connection and board reset behavior before changing test code.
 
-The current automated suites do not comprehensively prove:
+## 16. What the automated tests do not prove
 
-* real pump flow rate or dry-run behavior;
-* sensor placement and optical performance;
-* electrical noise immunity;
+The current suites provide strong coverage of generic timing/debounce utilities, configuration safety, parser behavior, and FSM transitions. They are not a substitute for testing the assembled ATO as a physical system.
+
+The automated suites do not comprehensively prove:
+
+* real pump flow rate;
+* dry-run behavior of a specific pump;
 * plumbing and siphon prevention;
-* real LED/buzzer visibility/audibility;
-* all `AtoActions` entry/exit hardware side effects as an integrated system;
-* long-duration endurance behavior on a complete assembled unit.
+* real sensor placement and optical performance;
+* electrical noise immunity in the installed system;
+* sensor contamination or maintenance state;
+* real LED visibility or buzzer audibility;
+* every `AtoActions` hardware side effect as an integrated system;
+* power-supply behavior under all pump/load combinations;
+* long-duration endurance of a complete assembled controller;
+* aquarium-specific installation safety.
 
-Use the Hardware Guide and User Guide procedures for physical-system checks, and perform a production Nano build after code changes.
+Use [`HardwareGuide.md`](HardwareGuide.md) for hardware bring-up and electrical/plumbing guidance, and [`UserGuide.md`](UserGuide.md) for operating checks and maintenance.
+
+## 17. Testing policy summary
+
+For day-to-day work, remember these rules:
+
+1. **Use `megaatmega2560` as the default test environment.**
+2. **Run the full regression suite on Mega with `pio test -e megaatmega2560`.**
+3. **Use Nano for tests only when Mega is unavailable, and then run compatible suites individually with `-f`.**
+4. **Never run `test_ato_fsm` on the Nano; use Mega.**
+5. **Treat `test_ato_config_store` as EEPROM-destructive.**
+6. **After tests, build the real production target with `pio run -e nanoatmega328`.**
+7. **Keep tests deterministic and add them alongside behavior changes.**
+8. **Keep hardware validation separate from firmware logic tests.**

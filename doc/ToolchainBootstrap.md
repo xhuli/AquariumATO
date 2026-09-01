@@ -13,7 +13,7 @@ The repository currently defines two PlatformIO environments:
 | Environment | Board | Purpose |
 | --- | --- | --- |
 | `nanoatmega328` | Arduino Nano / ATmega328P | Production firmware and most tests |
-| `megaatmega2560` | Arduino Mega 2560 | Development/test target when a Unity suite needs more SRAM |
+| `megaatmega2560` | Arduino Mega 2560 | Recommended default test environment; all Unity suites can run safely here |
 
 > **Important:** The production target is `nanoatmega328`, **not** `nanoatmega328new`.
 

@@ -53,9 +53,11 @@ Do not change wiring based only on this table and then assume the firmware will 
 
 ### 3.1 Input supply
 
-The root `README.md` specifies an external supply of approximately 9-12 V and at least 500 mA. The schematic labels the raw input rail as **10 V**.
+Use a suitable regulated **9-12 V DC supply rated for at least 500 mA** for the intended hardware configuration.
+The schematic labels the raw input rail as **10 V**.
 
 The input enters through the two-position `POWER` terminal block and passes through the board protection/filtering stage before the linear regulator.
+If the pump or other hardware is changed, verify the resulting voltage and current requirements before use.
 
 ### 3.2 `VCC` and `PWR` are not the same rail
 
