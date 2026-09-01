@@ -558,11 +558,11 @@ Use [`HardwareGuide.md`](HardwareGuide.md) for hardware bring-up and electrical/
 
 For day-to-day work, remember these rules:
 
-1. **Use `megaatmega2560` as the default test environment.**
-2. **Run the full regression suite on Mega with `pio test -e megaatmega2560`.**
-3. **Use Nano for tests only when Mega is unavailable, and then run compatible suites individually with `-f`.**
-4. **Never run `test_ato_fsm` on the Nano; use Mega.**
-5. **Treat `test_ato_config_store` as EEPROM-destructive.**
-6. **After tests, build the real production target with `pio run -e nanoatmega328`.**
-7. **Keep tests deterministic and add them alongside behavior changes.**
-8. **Keep hardware validation separate from firmware logic tests.**
+1. Use `megaatmega2560` as the default test environment.
+2. Run the full regression suite on Mega with `pio test -e megaatmega2560`.
+3. Use Nano for tests only when Mega is unavailable, and then run compatible suites individually with `-f`.
+4. Never run `test_ato_fsm` on the Nano; use Mega.
+5. Treat `test_ato_config_store` as EEPROM-destructive.
+6. After tests, build the real production target with `pio run -e nanoatmega328`.
+7. Keep tests deterministic and add them alongside behavior changes.
+8. Keep hardware validation separate from firmware logic tests.
