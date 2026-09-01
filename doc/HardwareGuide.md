@@ -367,12 +367,6 @@ The reviewed schematic source is titled **Auto Top Off**, revision **1.3**, date
 
 If the authoritative schematic source and BOM are later committed to the repository, link them here rather than duplicating their complete contents in this guide.
 
-I’d put that in the **BOM / spare parts / maintenance** area of `HardwareGuide.md`, not in the safety section.
-
-Best placement: immediately after the BOM highlights or parts-selection subsection, because it’s really a procurement and serviceability tip.
-
-Suggested wording:
-
 💡 **Tip:** Keep a few inexpensive critical spares on hand — especially level sensors, the pump, and the AC-DC power supply. These parts are relatively low-cost, and having replacements available can significantly reduce downtime if a component fails. When ordering online, consider buying one or two extra units at the same time.
 
 ## 14. Safety summary
