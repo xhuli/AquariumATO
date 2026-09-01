@@ -1,274 +1,256 @@
-# Auto Top Off (ATO) Controller
+# AquariumATO
 
-This project is an **Auto Top Off (ATO) controller** designed to maintain optimal water levels in an aquarium. The program leverages Arduino-compatible hardware to monitor liquid levels and control devices like LEDs, a water pump, a buzzer, and user interface components.
+AquariumATO is an Arduino Nano-based **automatic top-off (ATO) controller** for maintaining aquarium or sump water level. It monitors liquid-level sensors, controls a top-off pump, and reports operating and fault states through LEDs and a buzzer.
+
+The firmware is built around a small event-driven finite-state machine and includes independent safety mechanisms such as a high-water sensor, a finite pump runtime limit, an MCU watchdog, and optional low-water/reservoir monitoring.
+
+> **Important:** AquariumATO is a supplementary automation aid, not a substitute for regular aquarium inspection. Plumbing, sensor placement, pump sizing, and siphon prevention remain the responsibility of the installer/operator.
 
 ## Features
 
-- **Liquid Level Monitoring**: Uses liquid level sensors to detect normal, low and high water levels.
-- **LED Status Indicators**: Red, yellow, and green LEDs to signal the system's status.
-- **Buzzer Alerts**: Audible feedback for critical events.
-- **Water Pump Control**: Automatically dispenses water to maintain desired levels.
-- **Push Button Functionality**:
-  - Short press: Dispense water, or exit sleep mode.
-  - Long press: Enter sleep mode, or exit sleep mode.
-- **Timed Operation**: Includes configurable sleep and idle timers.
-- **Safety Mechanisms**:
-  - Watchdog timer to prevent system hangs.
-  - Maximum water pump run time to avoid overfilling and pump damage.
-  - Maximum sleep time to revert back to normal operation.
-  - Maximum idle time to notify possible sensor impediments.
+- Automatic top-off using a mandatory **Normal** level sensor.
+- Mandatory **High** level sensor for overfill protection.
+- Optional **Low** aquarium-level sensor.
+- Optional **Reservoir** low-level sensor.
+- Manual dispense and sleep/wake control from one push button.
+- Green, yellow, and red status LEDs.
+- Audible alarm patterns for fault/warning states.
+- Configurable sleep, idle, and maximum pump runtime values stored in EEPROM.
+- Non-blocking serial configuration console (`GET`, `SET`, `SAVE`, `RESET`, `TRACE`).
+- Pump runtime safety envelope of **5–180 seconds**; `0` cannot disable the cutoff through configuration.
+- AVR watchdog protection.
+- Unity test suites for the reusable utilities, FSM, sensors, button handling, and configuration subsystem.
 
-## Hardware Requirements
+## Documentation
 
-- Arduino-compatible micro-controller.
-- Liquid level sensors (Normal, Low, High, and Reservoir).
-- LEDs (Red, Yellow, Green).
-- Buzzer.
-- Water pump.
-- Push button.
-- External power supply (9-12V, 500mA or more).
+Detailed documentation is split by audience:
 
-## Pin Configuration
+- [User Guide](doc/UserGuide.md) — installation, operation, LED/buzzer meanings, button behavior, configuration, maintenance, and troubleshooting.
+- [Hardware Guide](doc/HardwareGuide.md) — wiring, pin map, sensors, power architecture, pump driver, plumbing, maintenance, and hardware design notes.
+- [Toolchain Bootstrap](doc/ToolchainBootstrap.md) — fresh-machine setup for PlatformIO, VS Code, and CLion/CMake.
+- [Testing Guide](doc/TestingGuide.md) — Unity suites, target requirements, running tests, and test-development conventions.
+- [Development Guide](doc/DevelopmentGuide.md) — firmware architecture, FSM, `Runnable`, configuration design, and extension conventions.
 
-Pin values can be edited in the [`main.cpp`](/src/main.cpp) file
+## Hardware Overview
 
-| Component                       | Pin     |
-|---------------------------------|---------|
-| Red LED                         | 12      |
-| Yellow LED                      | 11      |
-| Green LED                       | 10      |
-| Water Pump                      | 4       |
-| Push Button                     | 3       |
-| Buzzer                          | 2       |
-| Normal Liquid Level Sensor      | A0      |
-| Low Liquid Level Sensor         | A1      |
-| High Liquid Level Sensor        | A2      |
-| Reservoir Liquid Level Sensor   | A3      |
+The production firmware targets an **Arduino Nano / ATmega328P**.
 
-- The Normal and High Liquid Level Sensors are mandatory.
-- The Low and Reservoir Liquid Level Sensors are optional.
+### MCU pin map
 
-## Software Components
+| Function | Pin |
+|---|---:|
+| Red LED | D12 |
+| Yellow LED | D11 |
+| Green LED | D10 |
+| Water pump control | D4 |
+| Push button | D3 |
+| Buzzer | D2 |
+| Normal level sensor | A0 |
+| Low level sensor *(optional)* | A1 |
+| High level sensor | A2 |
+| Reservoir level sensor *(optional)* | A3 |
 
-The program includes and uses the following libraries and modules:
+The **Normal** and **High** sensors are mandatory. The Low and Reservoir sensors can be compiled in independently.
 
-- `CyclicSwitchable` and `TimedSwitchable`: For LED and pump control.
-- `LiquidLevelSensor`: For reading and processing liquid levels.
-- `PushButton`: For handling button presses.
-- `Timer`: For managing sleep and idle operations.
-- `AtoFsm` and `AtoActions`: Finite State Machine (FSM) to coordinate system behavior.
-- `Runnable`: For code separation into reusable and maintainable chunks.  
+For electrical details, sensor types, PCB power architecture, pump wiring, and safe physical installation, see the [Hardware Guide](doc/HardwareGuide.md).
 
-## Setup Instructions
+### Project hardware
 
-### Hardware Development
+[AutoTopOff 191023A hardware project on EasyEDA / OSHWLab](https://oshwlab.com/gorjan.dzundev/autotopoff-191023a)
 
-[AutoTopOff 191023A at EasyEDA](https://oshwlab.com/gorjan.dzundev/autotopoff-191023a)
+![AquariumATO controller](doc/images/AquariumAto_1.png)
 
-![Device Under Test](doc/images/AquariumAto_1.png)
+![AquariumATO sensors](doc/images/AquariumAto_2.png)
 
-![Sensors](doc/images/AquariumAto_2.png)
+## Operating Overview
 
-### PCB
+A normal automatic cycle is:
 
-![PCB](doc/images/AquariumAto_3.png)
+1. The controller waits in **Idle** while the Normal sensor reports the desired water level.
+2. When the water level falls below the Normal sensor, the controller enters automatic dispensing and starts the pump.
+3. When the Normal sensor is reached again, the pump stops and the controller returns to Idle.
+4. If a safety or fault condition occurs, the pump is stopped and the relevant warning/alarm state is entered.
 
-### Schematics
+The High sensor provides an independent level threshold above the Normal sensor. Optional Low and Reservoir sensors add further monitoring when enabled in the build.
 
-![Schematics](doc/images/AquariumAto_4.png)
+### Compact status summary
 
-1. **Hardware Assembly**:
-   - Connect components to the specified pins on the micro-controller.
-   - Ensure proper power supply connections.
+| Status | Main indication | Meaning |
+|---|---|---|
+| Idle | Green slow blink | Normal standby operation |
+| Automatic dispense | Green solid | Pump running automatically |
+| Manual dispense | Green fast blink | Pump running from button command |
+| Sleeping | Yellow slow blink | Automatic top-off temporarily suspended |
+| Water low | Red fast blink + buzzer | Optional low-level threshold triggered |
+| Water high | Red fast blink + buzzer | High-water safety threshold triggered |
+| Reservoir empty | Red slow blink + buzzer | Reservoir warning or automatic pump timeout |
+| Idle too long | Green + red slow blink + buzzer | No top-off cycle for the configured idle period |
+| Error | Red fast blink + buzzer | Inconsistent or unexpected FSM event condition |
 
-2. **Software Configuration**:
-   - Clone this repository to your development environment.
-   - Install required libraries.
+For the complete button behavior, alarm patterns, recovery actions, and troubleshooting steps, see the [User Guide](doc/UserGuide.md).
 
-3. **Customization**:
-   Modify these parameters in the code as needed:
-   - **LED polarity**: `WHEN_ON__PIN_HIGH` or `WHEN_ON__PIN_LOW`.
-   - **Push button debounce duration**: `PUSH_BUTTON_DEBOUNCE_MS`.
-   - **Push button long press duration**: `PUSH_BUTTON_LONG_PRESS_DURATION`.
-   - **Timers**:
-     - Sleep timer duration: `sleepTimer.setDurationMs()`.
-     - Idle timer duration: `idleTimer.setDurationMs()`.
-   - **Water pump max runtime**: `waterPump.setMaxOnTimeMs()`.
+## Safety
 
-4. **Upload**:
-   - Compile and upload the code to your micro-controller using the Arduino IDE or a compatible tool.
+Aquarium automation can fail mechanically, electrically, or in software. Use multiple independent safeguards where practical.
 
-## Usage
+Key AquariumATO protections include:
 
-1. The system initializes in an idle state, with LEDs signaling the status.
-2. When the normal liquid level sensor detects a drop, the water pump activates to top off the reservoir.
-3. The high liquid level sensor prevents overfilling by deactivating the pump.
-4. Press the push button for:
-   - **Short press**: Manually activate the pump, stop the pump, or exit sleep mode.
-   - **Long press**: Put the system into sleep mode, or exit sleep mode.
+- **High-water sensor:** stops normal dispensing and enters the high-water warning state.
+- **Finite pump runtime:** every accepted `PUMP_MAX_ON_MS` value must be between **5000 ms and 180000 ms**, inclusive.
+- **Watchdog:** the ATmega328P watchdog resets the controller if the main loop stops servicing it.
+- **Optional reservoir sensor:** can stop dispensing when the top-off reservoir becomes empty.
+- **Optional low-level sensor:** can detect an unexpectedly low aquarium/sump level.
 
-## Safety and Maintenance
+### Prevent siphoning
 
-- **Watchdog Timer**: Automatically resets the system if it becomes unresponsive.
-- **Prevent Overfilling**: The high-level sensor acts as an overfill failsafe.
-- **Low Level Sensor**: If present, triggers an alarm if the water level is low.
-- **Reservoir Sensor**: If present, triggers an alarm if the reservoir water level is low.
-- **Sleep Timer**: Automatically takes the device out of sleep mode after preset time.
-- **Idle Timer**: Triggers an alarm if the device is in Idle state for too long.
-- **Regular Checks**: Ensure sensors and the pump are functioning correctly.
+Pump shutdown cannot stop a gravity siphon. Route the tubing and position the reservoir/outlet so water cannot continue flowing after the pump switches off. See the [Hardware Guide](doc/HardwareGuide.md) for installation guidance.
 
-## AtoActions State Descriptions
+## Build and Upload
 
-### **1. `onExitState`**
+The production PlatformIO environment is:
 
-- **Description:** Actions performed when exiting any state.
-- **Actions:**
-  - Turns off all LEDs (**red**, **yellow**, and **green**).
-  - Turns off the **buzzer**.
-  - Turns off the **water dispenser**.
-  - Stops the **sleep timer** and **idle timer**.
-- **Blink/Buzz Patterns:** None.
+```text
+nanoatmega328
+```
 
----
+Do **not** substitute `nanoatmega328new`; the configured production target uses the classic Nano bootloader profile.
 
-### **2. `onEntryIdleState`**
+### Build
 
-- **Description:** Actions performed when the system is in an idle state.
-- **Actions:**
-  - The **green LED** blinks slowly.
-  - Activates the **idle timer**.
-- **Blink Pattern:**
-  - **Green LED:** Blinks slowly (`1520ms ON, 380ms OFF`).
-- **Buzz Pattern:** None.
+```bash
+pio run -e nanoatmega328
+```
 
----
+### Upload
 
-### **3. `onEntryIdleForTooLongState`**
+```bash
+pio run -e nanoatmega328 -t upload
+```
 
-- **Description:** Actions performed when the system has been idle for too long.
-- **Actions:**
-  - The **green LED** blinks slowly.
-  - The **red LED** blinks slowly.
-  - The **buzzer** plays a pattern to signal prolonged idle time.
-- **Blink Pattern:**
-  - **Green LED:** Blinks slowly (`1520ms ON, 380ms OFF`).
-  - **Red LED:** Blinks slowly (`1520ms ON, 380ms OFF`).
-- **Buzz Pattern:**
-  - **Idle Too Long Buzzer Pattern:**
-    - 5 short buzzes (`400ms ON, 1400ms OFF`), followed by a long buzz (`1800ms ON`).
-    - Repeats after **30 seconds**.
-    - Idle silence lasts until **10 minutes** elapse from the pattern's start.
-    - Repeat.
+The Nano upload path uses the bootloader upload rate associated with this board profile (57600 baud). The AquariumATO runtime serial console is a separate interface and runs at **9600 baud**.
 
----
+### Serial monitor
 
-### **4. `onEntryDispensingInAutoModeState`**
+```bash
+pio device monitor -b 9600
+```
 
-- **Description:** Actions performed when water is dispensed automatically.
-- **Actions:**
-  - The **green LED** stays constantly on.
-  - Activates the **water dispenser**.
-- **Blink Pattern:**
-  - **Green LED:** Constantly ON.
-- **Buzz Pattern:** None.
+For complete environment setup, USB permissions, VS Code, and CLion/CMake configuration, see [Toolchain Bootstrap](doc/ToolchainBootstrap.md).
 
----
+## Optional Sensors
 
-### **5. `onEntryDispensingInManualModeState`**
+The Low and Reservoir sensors are controlled with PlatformIO build flags in `platformio.ini`:
 
-- **Description:** Actions performed when water is dispensed manually.
-- **Actions:**
-  - The **green LED** blinks rapidly.
-  - Activates the **water dispenser**.
-- **Blink Pattern:**
-  - **Green LED:** Blinks rapidly (`380ms ON, 380ms OFF`).
-- **Buzz Pattern:** None.
+```ini
+build_flags =
+    -D ATO_HAS_LOW_SENSOR
+    -D ATO_HAS_RESERVOIR_SENSOR
+```
 
----
+Enable either flag independently as required by the installed hardware.
 
-### **6. `onEntryWaterLowState`**
+The Normal and High sensors are always compiled in and are required by the production design.
 
-- **Description:** Actions performed when the water level is low.
-- **Actions:**
-  - The **red LED** blinks rapidly.
-  - The **buzzer** plays a pattern to alert about low water level.
-- **Blink Pattern:**
-  - **Red LED:** Blinks rapidly (`380ms ON, 380ms OFF`).
-- **Buzz Pattern:**
-  - **Low Water Buzzer Pattern:**
-    - Long buzz (`1400ms ON`), followed by 2 short buzzes (`700ms ON, 400ms OFF`).
-    - Repeats after **30 seconds**.
-    - Idle silence lasts until **10 minutes** elapse from the pattern's start.
-    - Repeat.
+## Runtime Configuration
 
----
+The firmware provides a non-blocking serial console at **9600 baud**. Commands are case-insensitive and processed one line at a time.
 
-### **7. `onEntryWaterHighState`**
+Available commands:
 
-- **Description:** Actions performed when the water level is too high.
-- **Actions:**
-  - The **red LED** blinks rapidly.
-  - The **buzzer** plays a pattern to alert about high water level.
-- **Blink Pattern:**
-  - **Red LED:** Blinks rapidly (`380ms ON, 380ms OFF`).
-- **Buzz Pattern:**
-  - **High Water Buzzer Pattern:**
-    - 5 long buzzes (`1400ms ON, 400ms OFF`).
-    - Repeats after **30 seconds**.
-    - Idle silence lasts until **10 minutes** elapse from the pattern's start.
-    - Repeat.
+```text
+HELP
+GET
+SET <NAME> <VALUE>
+SAVE
+RESET
+TRACE ON
+TRACE ALL
+TRACE OFF
+```
 
----
+Runtime-configurable fields are:
 
-### **8. `onEntryReservoirEmptyState`**
+```text
+SLEEP_MAX_MS
+IDLE_MAX_MS
+PUMP_MAX_ON_MS
+```
 
-- **Description:** Actions performed when the reservoir is empty.
-- **Actions:**
-  - The **red LED** blinks slowly.
-  - The **buzzer** plays a pattern to indicate the empty reservoir.
-- **Blink Pattern:**
-  - **Red LED:** Blinks slowly (`1520ms ON, 380ms OFF`).
-- **Buzz Pattern:**
-  - **Reservoir Empty Buzzer Pattern:**
-    - 3 long buzzes (`1400ms ON, 400ms OFF`).
-    - Repeats after **30 seconds**.
-    - Idle silence lasts until **10 minutes** elapse from the pattern's start.
-    - Repeat.
+Example:
 
----
+```text
+GET
+SET PUMP_MAX_ON_MS 60000
+SAVE
+```
 
-### **9. `onEntrySleepingState`**
+`SET` applies a valid value immediately but does **not** persist it. `SAVE` writes the current configuration to EEPROM. `RESET` restores the compiled defaults in memory but does not persist them until `SAVE` is issued.
 
-- **Description:** Actions performed when the system enters a sleep state.
-- **Actions:**
-  - The **yellow LED** blinks slowly.
-  - Activates the **sleep timer**.
-- **Blink Pattern:**
-  - **Yellow LED:** Blinks slowly (`1520ms ON, 380ms OFF`).
-- **Buzz Pattern:** None.
+`PUMP_MAX_ON_MS` is safety validated and accepts only **5000..180000 ms** inclusive. Invalid configuration is rejected rather than clamped or silently applied.
 
----
+`TRACE ON` logs FSM transitions. `TRACE ALL` also logs dispatched events that match no transition rule. Tracing is intended for diagnostics and is not persisted.
 
-### **10. `onEntryErrorState`**
+See the [User Guide](doc/UserGuide.md) for operator-oriented examples and the [Development Guide](doc/DevelopmentGuide.md) for configuration internals.
 
-- **Description:** Actions performed when an error occurs.
-- **Actions:**
-  - The **red LED** blinks rapidly.
-  - The **buzzer** plays a pattern to indicate an error.
-- **Blink Pattern:**
-  - **Red LED:** Blinks rapidly (`380ms ON, 380ms OFF`).
-- **Buzz Pattern:**
-  - **Error Buzzer Pattern:**
-    - 2 short buzzes (`700ms ON, 400ms OFF`), followed by a long buzz (`1400ms ON`).
-    - Repeats after **30 seconds**.
-    - Idle silence lasts until **10 minutes** elapse from the pattern's start.
-    - Repeat.
+## Compiled Defaults
 
-## Development Guide
+The current production defaults are:
 
-Link to the [Development Guide](doc/DevelopmentGuide.md)
+| Setting | Default |
+|---|---:|
+| Maximum sleep time | 2 hours |
+| Maximum idle time | 6 hours |
+| Maximum single pump run | 90 seconds |
+| Button debounce | 160 ms |
+| Long press | 3 seconds |
 
-## Acknowledgments
+The three runtime timing values are loaded from EEPROM when a valid saved configuration exists; otherwise the firmware falls back to the compiled defaults.
 
-- [paulmurraycbr.github.io](https://paulmurraycbr.github.io/ArduinoTheOOWay.html)
-- [Nick Gammon](https://www.gammon.com.au/scripts/forum.php)
+## Testing
+
+The repository contains Unity test suites for:
+
+- `RingBuffer`
+- `Runnable`
+- `Timer`
+- `TimedSwitchable`
+- `CyclicSwitchable`
+- `LiquidLevelSensor`
+- `PushButton`
+- `AtoFsm`
+- ATO configuration store and serial-console behavior
+
+Most tests can run on the Nano target. The FSM suite uses the Mega 2560 test target because the Unity test image needs more SRAM than the production Nano provides.
+
+> **Warning:** configuration-store tests exercise real EEPROM and are destructive to the saved configuration on the test board.
+
+See [Testing Guide](doc/TestingGuide.md) before running or extending the suites.
+
+## Repository Layout
+
+```text
+AquariumATO-master/
+├── include/ato/      # ATO FSM, actions, configuration and serial console
+├── lib/              # Reusable embedded utility classes
+├── src/main.cpp      # Production composition, pins and callbacks
+├── test/             # Unity test suites
+├── doc/              # User, hardware, toolchain, testing and development guides
+├── platformio.ini    # Production and test PlatformIO environments
+└── CMakeLists.txt    # CLion/CMake integration
+```
+
+## Contributing / Development
+
+Before changing firmware behavior:
+
+1. Read the [Development Guide](doc/DevelopmentGuide.md).
+2. Build the production `nanoatmega328` environment.
+3. Run the relevant Unity suites described in the [Testing Guide](doc/TestingGuide.md).
+4. Preserve the pump safety invariant: configured pump runtime must always remain finite and within the defined safety envelope.
+5. Update the appropriate user/developer documentation when behavior or hardware assumptions change.
+
+## Disclaimer
+
+AquariumATO is a DIY aquarium automation project and is used at your own risk. No automated top-off system should be considered completely fail-safe. Verify component ratings, wiring, sensor placement, pump behavior, plumbing, siphon prevention, enclosure protection, and electrical safety for your installation, and continue to inspect the aquarium and ATO hardware regularly.
+
+The project authors and contributors are not responsible for aquarium damage, livestock loss, water damage, electrical damage, equipment failure, or other losses resulting from the construction, modification, installation, configuration, or operation of the device, or from the use or modification of the firmware or schematics.

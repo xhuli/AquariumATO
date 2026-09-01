@@ -1,77 +1,466 @@
-# Development Guide - Ubuntu
+# AquariumATO Development Guide
 
-## C/C++ Installation
+This guide describes the firmware architecture, design conventions, and extension points for contributors modifying AquariumATO. It assumes the toolchain is already working; machine setup belongs in `ToolchainBootstrap.md`, while test execution belongs in `TestingGuide.md`.
 
-<https://medium.com/@ppatil/avr-programing-using-avrdude-in-ubuntu-93734c26ad19>
+## 1. Firmware architecture at a glance
 
-## VS Code
+AquariumATO is structured as a cooperative, event-driven firmware application.
 
-### Install VS Code (Ubuntu)
+The main pieces are:
 
-- Open the `App Center`
-- Search for `code`
-- Install
+- `src/main.cpp` — composition root: constructs hardware-facing objects, wires callbacks, loads configuration, registers tracing, and starts the watchdog.
+- `lib/runnable/Runnable.h` — cooperative scheduling through self-registering objects whose `setup()` and `loop()` methods are called from the Arduino sketch.
+- `include/ato/AtoFsm.h` — explicit **finite-state machine** (FSM) and transition table.
+- `include/ato/AtoActions.h` — state-entry/state-exit actions: LEDs, buzzer patterns, pump state, and timers.
+- `include/ato/AtoConfig.h` — persistent configuration model, EEPROM validation, CRC/version handling, and semantic safety checks.
+- `include/ato/AtoConfigConsole.h` — non-blocking serial configuration and FSM tracing controls.
+- sensor/button/timer/switch libraries under `lib/` — reusable hardware abstractions.
 
-### Install VS Code Plugins
+The control flow is intentionally simple:
 
-<https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools>
-<https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools-themes>
-<https://marketplace.visualstudio.com/items?itemName=geeebe.duplicate>
-<https://marketplace.visualstudio.com/items?itemName=chadalen.vscode-jetbrains-icon-theme>
-<https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint>
-<https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml>
-<https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide>
+1. Hardware abstractions detect a real event.
+2. Their callback dispatches an `AtoFsm::Event`.
+3. `AtoFsm` looks up `(currentState, event)` in `TRANSITION_TABLE`.
+4. On a match, the FSM exits the old state, changes state, and enters the new state through `AtoActions`.
+5. State actions control the pump, timers, LEDs, and buzzer.
 
-### Install PlatformIO Rules
+The sketch does not poll the FSM directly in the hot loop. The FSM only receives genuine events from callbacks.
 
-<https://docs.platformio.org/en/latest/core/installation/udev-rules.html> 
+## 2. Composition and startup
 
-## CLion Installation (Incomplete)
+`src/main.cpp` is the application composition root.
 
-<https://blog.jetbrains.com/clion/2020/08/arduino-from-hobby-to-prof-p1/>
+Global/static objects are constructed for:
 
-### Install PlatformIO (Ubuntu)
+- LEDs and buzzer (`Switchable` + `CyclicSwitchable`)
+- water pump (`Switchable` + `TimedSwitchable`)
+- liquid-level sensors
+- push button
+- sleep and idle timers
+- `AtoActions`
+- `AtoFsm`
+- runtime configuration and console
 
-```shell
-sudo apt-get update
-sudo apt-get install gcc build-essential
-sudo apt-get install gcc-avr binutils-avr avr-libc gdb-avr
-sudo apt-get install avrdude
-sudo apt-get install libusb-dev
+During `setup()` the firmware:
 
-sudo apt  install curl
+1. starts `Serial` at 9600 baud;
+2. loads and applies ATO configuration;
+3. injects hardware objects into `AtoActions`;
+4. connects sensor callbacks to FSM events;
+5. connects timer callbacks to FSM events;
+6. connects the pump timeout callback to the FSM;
+7. connects button short/long presses to FSM events;
+8. installs the optional FSM trace callback;
+9. calls `Runnable::setupAll()`;
+10. initializes the FSM into `Idle` actions;
+11. enables the 2-second watchdog.
 
-mkdir -p /home/$USER/Downloads
-cd /home/$USER/Downloads
+The main Arduino `loop()` only calls:
 
-curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py
-
-python3 get-platformio.py
-
-echo -e 'export PATH=$PATH:$HOME/.local/bin\n' >> /home/$USER/.profile
-
-mkdir -p ~/.local/bin/
-
-ln -s ~/.platformio/penv/bin/platformio ~/.local/bin/platformio
-ln -s ~/.platformio/penv/bin/pio ~/.local/bin/pio
-ln -s ~/.platformio/penv/bin/piodebuggdb ~/.local/bin/piodebuggdb
+```cpp
+xal::Runnable::loopAll();
+wdt_reset();
 ```
 
-### Install PlatformIO plugin for CLion
+This means all recurring work must remain non-blocking and return promptly.
 
-1. Open CLion
-2. `Ctrl + Alt + S` > Plugins
-3. Marketplace > Search `PlatformIO`
-4. Install > Restart IDE
+### Watchdog constraint
 
-### Setup CLion
+The watchdog is configured for 2 seconds. Do not add blocking operations or delays that can prevent the main loop from resetting it within that window.
 
-1. `Ctrl + Alt + S`  > `Build, Execution, Deployment`
-2. `Toolchains` > `+` > `System`
-    - Name: `Arduino`
-    - C Compiler: `/home/<user>/.platformio/packages/toolchain-atmelavr/bin/avr-gcc`
-    - C++ Compiler: `/home/<user>/.platformio/packages/toolchain-atmelavr/bin/avr-g++`
-3. `CMake` > `+`
-    - Name: `Nano`
-    - Build Type: `nano`
-    - Toolchain: `Arduino`
+## 3. `Runnable` cooperative scheduling
+
+`Runnable` is the project's lightweight scheduler abstraction.
+
+Every `Runnable` instance self-registers in its constructor. `Runnable::setupAll()` and `Runnable::loopAll()` traverse the registry and invoke each object.
+
+The registry uses a function-local static accessor, allowing the header to be included safely from multiple translation units.
+
+### Lifetime rules
+
+Registered `Runnable` objects are expected to have static/global lifetime.
+
+The registry deliberately does not support deregistration. Copying and moving are disabled because a `Runnable` represents a unique registered object.
+
+Do not create short-lived stack `Runnable` instances in production code.
+
+### Registration order
+
+Registration is LIFO: newer objects become the list head. Do not build application behavior that depends on incidental global construction order unless the ordering is explicitly required and tested.
+
+**LIFO** - Last In, First Out: the last item added is the first one to be processed.
+
+## 4. Event-driven FSM
+
+The ATO state machine is defined in `include/ato/AtoFsm.h`.
+
+### States
+
+Current states are:
+
+- `Idle`
+- `DispensingInAutoMode`
+- `DispensingInManualMode`
+- `WaterLevelLow`
+- `WaterLevelHigh`
+- `ReservoirEmpty`
+- `Sleeping`
+- `IdleForTooLong`
+- `Error`
+
+### Events
+
+Events are generated by sensors, timers, pump timeout, and button callbacks. Examples include:
+
+- `NormalLevelSensorNotTriggered`
+- `HighLevelSensorIsTriggered`
+- `ReservoirLevelSensorNotTriggered`
+- `DispenseButtonIsPushed`
+- `SleepButtonIsPushed`
+- `DispenserOnTimeElapsed`
+- `SleepTimeElapsed`
+- `MaxIdleTimeElapsed`
+
+### Transition-table design
+
+Transitions are represented explicitly as:
+
+```cpp
+struct Transition
+{
+    State fromState;
+    Event event;
+    State toState;
+};
+```
+
+`TRANSITION_TABLE` is the authoritative description of legal state changes.
+
+A dispatch with no matching `(state, event)` pair leaves the FSM in the same state. With `TRACE ALL`, such ignored events can be observed on the serial console.
+
+### Adding a state
+
+When adding a state:
+
+1. add it to `enum class State`;
+2. add a string in `stateName()`;
+3. add all valid transition-table rows;
+4. add corresponding entry/exit behavior in `AtoActions`;
+5. add exhaustive FSM tests, including at least one no-match case;
+6. update user-facing status documentation if the state is observable.
+
+Avoid introducing nested switch-based transition logic.
+Keep transition policy in the table and state behavior in `AtoActions`.
+
+### Adding an event
+
+When adding an event:
+
+1. add it to `enum class Event`;
+2. add it to `eventName()`;
+3. connect a real callback/source in `main.cpp` or the appropriate component;
+4. add only the transition rows where it is meaningful;
+5. add tests for matched and ignored cases.
+
+## 5. `AtoActions`: state behavior
+
+`AtoActions` is responsible for what the system does when entering or exiting an FSM state.
+
+It owns pointers to the active hardware abstractions and uses predefined cycle arrays for LED/buzzer signaling.
+
+Typical state actions include:
+
+- starting or stopping the pump;
+- starting or stopping sleep/idle timers;
+- selecting LED blink patterns;
+- selecting buzzer patterns;
+- ensuring outputs are turned off when leaving a state.
+
+Keep transition decisions out of `AtoActions`. It should implement state effects, not decide which state comes next.
+
+### Pattern arrays
+
+LED and buzzer patterns are represented as arrays of interval durations and are consumed by `CyclicSwitchable`.
+
+Production patterns use compile-time arrays and `static_assert` checks where total timing matters. Preserve that approach when adding long alarm patterns; compile-time checks make accidental edits easier to detect.
+
+`CyclicSwitchable` intentionally advances only one interval when its `process()` call observes an elapsed interval. If the loop is delayed, the pattern may stretch rather than skipping historical intervals. This is current intended behavior.
+
+## 6. Sensors and debouncing
+
+`LiquidLevelSensor` and `PushButton` use `RingBuffer` to smooth/debounce readings.
+
+The application explicitly pre-fills each buffer during construction/setup using the expected initial state, for example:
+
+```cpp
+buffer.fill(initialReading);
+```
+
+or:
+
+```cpp
+buffer.fill(pinStateWhenReleased);
+```
+
+This avoids an initial period where a partially filled buffer could misrepresent the physical state.
+
+### `RingBuffer` semantics
+
+Important behaviors:
+
+- a newly constructed buffer is logically empty;
+- `fill(value)` makes it logically full;
+- `clear()` resets it to an empty logical state and also initializes backing values to `T()` for deterministic debugging;
+- `average()` returns `T()` for an empty buffer;
+- wraparound overwrites the oldest entries as expected.
+
+### Hardware + software filtering
+
+The project uses software debouncing/filtering in addition to hardware-side filtering where present. Do not assume software filtering makes noisy wiring irrelevant; sensor cabling, grounding, and RC filtering remain part of the physical design.
+
+## 7. Optional sensors
+
+The Normal and High level sensors are mandatory.
+
+The Low and Reservoir sensors are compile-time optional through PlatformIO build flags:
+
+```ini
+-D ATO_HAS_LOW_SENSOR
+-D ATO_HAS_RESERVOIR_SENSOR
+```
+
+`main.cpp` conditionally declares and wires those sensors with `#ifdef` blocks.
+
+When adding an optional hardware feature, keep all declarations, callbacks, pins, and transition dependencies consistently guarded. Test both enabled and disabled builds.
+
+Do not make a transition depend on an event that can never be generated in a build configuration unless that behavior is deliberate and documented.
+
+## 8. Timers and timed switching
+
+The project uses two related abstractions:
+
+- `Timer` for one-shot elapsed-time events such as sleep and maximum idle time;
+- `TimedSwitchable` for bounded ON/OFF time around a physical switchable device.
+
+The water pump uses `TimedSwitchable`.
+
+When its maximum ON time elapses, it turns the pump off before invoking the timeout callback. The callback then dispatches `DispenserOnTimeElapsed` to the FSM.
+
+A configured maximum duration of zero in `TimedSwitchable` means no automatic timeout. Because that would disable the pump safety cutoff, configuration validation explicitly prevents `PUMP_MAX_ON_MS = 0` from reaching the live pump configuration.
+
+All elapsed-time checks use unsigned subtraction (`now - previous`), preserving normal Arduino `millis()` rollover behavior.
+
+## 9. Configuration architecture
+
+Runtime configuration is defined by `AtoConfig` and persisted in EEPROM through `AtoConfigStore`.
+
+Current tunable values include:
+
+- sleep maximum duration;
+- idle maximum duration;
+- pump maximum ON duration.
+
+The EEPROM record also includes:
+
+- magic value;
+- configuration version;
+- CRC.
+
+### Structural vs semantic validation
+
+Configuration validity has two layers.
+
+Structural validation checks EEPROM integrity and compatibility, including magic/version/CRC.
+
+Semantic validation checks whether values are safe and meaningful for the application.
+
+The pump maximum runtime has an explicit safety envelope:
+
+- minimum: 5,000 ms;
+- maximum: 180,000 ms;
+- both inclusive.
+
+Invalid persisted configuration is rejected and replaced with compiled defaults.
+
+### Applying configuration
+
+Do not write timer/pump values directly from a new UI or persistence path.
+
+Use the central validation/application path (`applyValidatedAtoConfig()` / `applyAtoConfig()`), which ensures an unsafe config cannot reach the live pump timeout setter.
+
+If adding a new configuration field:
+
+1. add it to `AtoConfig`;
+2. decide whether it needs semantic validation;
+3. update EEPROM versioning if the persisted layout changes;
+4. update save/load/default behavior;
+5. update serial `GET`/`SET` handling;
+6. update tests, including invalid persisted values;
+7. update user documentation.
+
+Do not silently clamp unsafe persisted values unless that becomes an explicit project policy. The current pattern is reject-and-fallback.
+
+## 10. Serial configuration console
+
+`AtoConfigConsole` is itself a `Runnable` and consumes serial input incrementally without blocking.
+
+Supported commands include:
+
+```text
+HELP
+GET
+SET <name> <value>
+SAVE
+RESET
+TRACE ON
+TRACE ALL
+TRACE OFF
+```
+
+The console runs on an already initialized `Serial` instance at 9600 baud.
+
+### Parser guarantees
+
+The parser intentionally fails closed:
+
+- numeric arguments must be exact decimal `uint32_t` values;
+- overflow is rejected;
+- unexpected trailing arguments are rejected;
+- an overlong physical line is discarded until newline;
+- a valid-looking suffix of an overflowed line is never executed;
+- rejected operations do not mutate active configuration;
+- errors use the `ERROR` prefix.
+
+When extending the console, validate the whole command before applying side effects.
+
+### TRACE
+
+FSM tracing is runtime-only and is not persisted in EEPROM.
+
+- `TRACE ON` logs transitions.
+- `TRACE ALL` also logs dispatched events that match no transition rule.
+- `TRACE OFF` disables tracing.
+
+Trace names are stored in flash using `F()` / `__FlashStringHelper` to avoid unnecessary SRAM consumption.
+
+## 11. Pump safety invariants
+
+The pump path deserves stricter rules than ordinary output code.
+
+Maintain these invariants:
+
+- runtime configuration must always preserve a finite automatic pump cutoff;
+- `PUMP_MAX_ON_MS` must remain within the configured 5–180 second safety envelope;
+- persisted config must pass semantic validation, not only CRC/version checks;
+- invalid config must not be applied to the pump;
+- pump timeout should physically turn the pump off before dispatching its timeout event;
+- FSM high-water/reservoir protections remain independent layers and should not be removed because a timer exists.
+
+When modifying the pump path, add regression tests around the actual safety invariant rather than only testing helper functions.
+
+## 12. Extending hardware abstractions
+
+Prefer the existing layering:
+
+- raw pin behavior in `Switchable` / sensor classes;
+- reusable timing behavior in `Timer`, `TimedSwitchable`, `CyclicSwitchable`;
+- event generation through callbacks;
+- product policy in `AtoFsm`;
+- state effects in `AtoActions`.
+
+Avoid putting product-specific FSM decisions inside generic `lib/` classes.
+
+Keep generic classes deterministic where practical by exposing `process(nowMs)` overloads for time-based logic. The current timed components use this pattern so Unity tests can use fabricated timestamps without relying on real delays.
+
+## 13. Memory and AVR constraints
+
+The production target is an ATmega328P Nano with limited SRAM.
+
+Development conventions that help:
+
+- use `F("...")` for constant serial strings where practical;
+- keep large tables/strings out of RAM;
+- avoid dynamic allocation;
+- prefer fixed-size buffers;
+- be careful adding large Unity fixtures to Nano-targeted tests.
+
+The FSM Unity suite uses the Mega test environment because its test image requires more SRAM than the Nano provides. This does not imply production firmware requires a Mega.
+
+## 14. Coding conventions
+
+Follow the existing style rather than introducing a second architectural pattern.
+
+In particular:
+
+- use `constexpr` for compile-time constants;
+- use fixed-width integer types for MCU-facing values;
+- keep callbacks small and dispatch events rather than doing substantial work inside them;
+- keep `loop()` methods non-blocking;
+- preserve rollover-safe unsigned elapsed-time arithmetic;
+- validate before mutating persistent or live safety-related state;
+- avoid hidden dynamic allocation;
+- keep optional hardware behind explicit build flags;
+- add tests alongside behavior changes.
+
+## 15. Typical extension workflows
+
+### Add a new observable FSM state
+
+1. extend `State` and `stateName()`;
+2. add transition-table rows;
+3. implement `AtoActions` entry/exit behavior;
+4. add/extend indicator patterns;
+5. add FSM tests;
+6. update `UserGuide.md` if users can encounter the state.
+
+### Add a new sensor
+
+1. define its MCU pin;
+2. construct the sensor abstraction;
+3. add event(s) if needed;
+4. wire callbacks in `configureSensors()`;
+5. add transition rows;
+6. add sensor and FSM tests;
+7. if optional, add a build flag and test both configurations;
+8. document wiring in `HardwareGuide.md`.
+
+### Add a new LED/buzzer pattern
+
+1. define the interval array in `AtoActions`;
+2. add compile-time duration checks where total timing matters;
+3. assign it in the appropriate state-entry action;
+4. test `CyclicSwitchable` only if its generic behavior changes;
+5. document user-visible meaning in `UserGuide.md`.
+
+### Add a configuration field
+
+1. define the field and default;
+2. determine safe semantic bounds;
+3. update persistence/version logic;
+4. update central validation;
+5. update apply logic;
+6. update console `GET`/`SET`/`RESET` behavior;
+7. add persistence/parser/application tests;
+8. document it for users.
+
+## 16. What belongs in other guides
+
+Keep this guide focused on software architecture and contribution conventions.
+
+- `ToolchainBootstrap.md` — installing PlatformIO/AVR tools and IDE setup.
+- `TestingGuide.md` — Unity environments, test commands, suite-specific caveats.
+- `HardwareGuide.md` — electronics, sensor technologies, PCB/power architecture, pump wiring, plumbing.
+- `UserGuide.md` — operating the finished ATO, indicators, button behavior, runtime configuration, troubleshooting.
+
+## 17. Pre-review checklist
+
+Before submitting a firmware change:
+
+- production Nano build succeeds;
+- relevant Unity suites pass;
+- no blocking call threatens the watchdog budget;
+- FSM changes are represented in the transition table and covered by tests;
+- safety-related config is centrally validated;
+- optional-sensor configurations still compile where affected;
+- new user-visible behavior is reflected in the appropriate guide;
+- no generated PlatformIO or IDE artifacts are committed.
