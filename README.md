@@ -256,9 +256,9 @@ Before changing firmware behavior:
 
 ## Disclaimer
 
-AquariumATO is a DIY aquarium automation project and is used at your own risk. No automated top-off system should be considered completely fail-safe. Verify component ratings, wiring, sensor placement, pump behavior, plumbing, siphon prevention, enclosure protection, and electrical safety for your installation, and continue to inspect the aquarium and ATO hardware regularly.
+AquariumATO is a DIY aquarium automation project and is used at your own risk. No automated top-off system should be considered fail-safe. Verify component ratings, wiring, sensor placement, pump behavior, plumbing, siphon prevention, enclosure protection, and electrical safety for your installation, and continue to inspect the aquarium and ATO hardware regularly.
 
-The project authors and contributors are not responsible for aquarium damage, livestock loss, water damage, electrical damage, equipment failure, or other losses resulting from the construction, modification, installation, configuration, or operation of the device, or from the use or modification of the firmware or schematics.
+The project authors and contributors are not responsible for aquarium damage, livestock loss, water damage, flood damage, property damage, electrical damage, fire, equipment failure, injury, death, or any other loss or damage of any kind — material, financial, physical, or otherwise — resulting from the construction, modification, installation, configuration, or operation of the device, or from the use or modification of its firmware, schematics, or documentation.
 
 ## Acknowledgments
 
