@@ -1,0 +1,51 @@
+name: Test suite build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# Cancel a still-running instance of this workflow on the same branch when a
+# new push supersedes it, instead of letting both run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Unity suites (megaatmega2560)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      # ~/.platformio holds the downloaded platform/toolchain/framework
+      # packages - by far the slowest part of this job. Keyed on
+      # platformio.ini; falls back to the most recent cache for this OS if
+      # platformio.ini has since changed, rather than starting from nothing.
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
+
+      - name: Install PlatformIO
+        run: pip install -U platformio
+
+      # The 9 Unity suites are on-target tests - they need a real AVR board
+      # wired over serial to actually run (see doc/TestingGuide.md). CI has
+      # no board, so this builds every suite's test firmware and stops
+      # there: --without-uploading and --without-testing keep the build,
+      # skip the flash-and-run. It catches compile/link breakage in lib/
+      # and include/ato/ that a firmware-only build (which never pulls the
+      # test sources in) would miss; it does not execute any assertions.
+      - name: Build test suites
+        run: pio test -e megaatmega2560 --without-uploading --without-testing

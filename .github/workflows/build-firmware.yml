@@ -1,0 +1,96 @@
+name: Firmware build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# Cancel a still-running instance of this workflow on the same branch when a
+# new push supersedes it, instead of letting both run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: nanoatmega328 (${{ matrix.label }})
+    runs-on: ubuntu-latest
+
+    # The optional Low/Reservoir sensors are compile-time build flags, not
+    # code that a default build ever touches. Building every combination
+    # here is what keeps those paths from silently rotting between the
+    # times someone actually enables them. Normal/High are always in.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: default
+            flags: ""
+          - label: low-sensor
+            flags: "-D ATO_HAS_LOW_SENSOR"
+          - label: reservoir-sensor
+            flags: "-D ATO_HAS_RESERVOIR_SENSOR"
+          - label: low+reservoir
+            flags: "-D ATO_HAS_LOW_SENSOR -D ATO_HAS_RESERVOIR_SENSOR"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      # ~/.platformio holds the downloaded platform/toolchain/framework
+      # packages (atmelavr, toolchain-atmelavr, framework-arduino-avr) - by
+      # far the slowest part of this job. Keyed on platformio.ini since
+      # that's what determines which packages get pulled; falls back to the
+      # most recent cache for this OS if platformio.ini has since changed,
+      # rather than starting from nothing.
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
+
+      - name: Install PlatformIO
+        run: pip install -U platformio
+
+      # PLATFORMIO_BUILD_FLAGS is appended to platformio.ini's build_flags,
+      # so the matrix injects sensor flags without editing the checked-in
+      # config. Empty for the default leg.
+      - name: Build firmware
+        env:
+          PLATFORMIO_BUILD_FLAGS: ${{ matrix.flags }}
+        run: pio run -e nanoatmega328 | tee pio-build.log
+
+      # pio run already fails outright (nonzero exit) if the firmware
+      # doesn't fit at all - a linker "region overflowed" error. This step
+      # is a softer signal below that hard ceiling: a non-blocking warning
+      # once usage crosses a threshold, so growth on the SRAM-tight
+      # ATmega328 (2KB) gets noticed early rather than only when it finally
+      # won't fit. Reads PlatformIO's own printed percentages (which
+      # already account for this board's real maximum_size /
+      # maximum_ram_size) instead of hardcoding the numbers here.
+      - name: Warn if flash/RAM usage is high
+        run: |
+          THRESHOLD=90
+          RAM_LINE=$(grep '^RAM:' pio-build.log)
+          FLASH_LINE=$(grep '^Flash:' pio-build.log)
+          RAM_USED=$(echo "$RAM_LINE" | grep -oP 'used \K[0-9]+')
+          RAM_MAX=$(echo "$RAM_LINE" | grep -oP 'from \K[0-9]+')
+          FLASH_USED=$(echo "$FLASH_LINE" | grep -oP 'used \K[0-9]+')
+          FLASH_MAX=$(echo "$FLASH_LINE" | grep -oP 'from \K[0-9]+')
+          RAM_PCT=$(( RAM_USED * 100 / RAM_MAX ))
+          FLASH_PCT=$(( FLASH_USED * 100 / FLASH_MAX ))
+          echo "RAM: ${RAM_USED}/${RAM_MAX} bytes (${RAM_PCT}%)"
+          echo "Flash: ${FLASH_USED}/${FLASH_MAX} bytes (${FLASH_PCT}%)"
+          if [ "$RAM_PCT" -ge "$THRESHOLD" ]; then
+            echo "::warning::RAM usage is ${RAM_PCT}% (${RAM_USED}/${RAM_MAX} bytes) - at or above the ${THRESHOLD}% watch threshold"
+          fi
+          if [ "$FLASH_PCT" -ge "$THRESHOLD" ]; then
+            echo "::warning::Flash usage is ${FLASH_PCT}% (${FLASH_USED}/${FLASH_MAX} bytes) - at or above the ${THRESHOLD}% watch threshold"
+          fi
