@@ -1,5 +1,8 @@
 # AquariumATO
 
+[![Firmware build](https://github.com/xhuli/AquariumATO/actions/workflows/build-firmware.yml/badge.svg)](https://github.com/xhuli/AquariumATO/actions/workflows/build-firmware.yml)
+[![Test suite build](https://github.com/xhuli/AquariumATO/actions/workflows/build-tests.yml/badge.svg)](https://github.com/xhuli/AquariumATO/actions/workflows/build-tests.yml)
+
 AquariumATO is an Arduino Nano-based **automatic top-off (ATO) controller** for maintaining aquarium or sump water level. It monitors liquid-level sensors, controls a top-off pump, and reports operating and fault states through LEDs and a buzzer.
 
 The firmware is built around a small event-driven finite-state machine and includes independent safety mechanisms such as a high-water sensor, a finite pump runtime limit, an MCU watchdog, and optional low-water/reservoir monitoring.
