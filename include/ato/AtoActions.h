@@ -162,57 +162,57 @@ namespace xal
 
             void onEntryIdleState()
             {
-                setOn(greenLed, 2, led_blink_pattern_slow);
+                setOn(greenLed, led_blink_pattern_slow);
                 setOn(idleTimer);
             }
 
             void onEntryIdleForTooLongState()
             {
-                setOn(greenLed, 2, led_blink_pattern_slow);
-                setOn(redLed, 2, led_blink_pattern_slow);
-                setOn(buzzer, 24, buzzer_idle_for_too_long_pattern);
+                setOn(greenLed, led_blink_pattern_slow);
+                setOn(redLed, led_blink_pattern_slow);
+                setOn(buzzer, buzzer_idle_for_too_long_pattern);
             }
 
             void onEntryDispensingInAutoModeState()
             {
-                setOn(greenLed, 1, led_always_on);
+                setOn(greenLed, led_always_on);
                 setOn(waterDispenser);
             }
 
             void onEntryDispensingInManualModeState()
             {
-                setOn(greenLed, 2, led_blink_pattern_fast);
+                setOn(greenLed, led_blink_pattern_fast);
                 setOn(waterDispenser);
             }
 
             void onEntryWaterLowState()
             {
-                setOn(redLed, 2, led_blink_pattern_fast);
-                setOn(buzzer, 12, buzzer_water_low_pattern);
+                setOn(redLed, led_blink_pattern_fast);
+                setOn(buzzer, buzzer_water_low_pattern);
             }
 
             void onEntryWaterHighState()
             {
-                setOn(redLed, 2, led_blink_pattern_fast);
-                setOn(buzzer, 20, buzzer_water_high_pattern);
+                setOn(redLed, led_blink_pattern_fast);
+                setOn(buzzer, buzzer_water_high_pattern);
             }
 
             void onEntryReservoirEmptyState()
             {
-                setOn(redLed, 2, led_blink_pattern_slow);
-                setOn(buzzer, 12, buzzer_reservoir_pattern);
+                setOn(redLed, led_blink_pattern_slow);
+                setOn(buzzer, buzzer_reservoir_pattern);
             }
 
             void onEntrySleepingState()
             {
-                setOn(yellowLed, 2, led_blink_pattern_slow);
+                setOn(yellowLed, led_blink_pattern_slow);
                 setOn(sleepTimer);
             }
 
             void onEntryErrorState()
             {
-                setOn(redLed, 2, led_blink_pattern_fast);
-                setOn(buzzer, 12, buzzer_error_pattern);
+                setOn(redLed, led_blink_pattern_fast);
+                setOn(buzzer, buzzer_error_pattern);
             }
 
             /* Setters */
@@ -226,6 +226,22 @@ namespace xal
             void setIdleTimer(Timer *idleTimer) { AtoActions::idleTimer = idleTimer; }
 
         private:
+            /**
+             * @brief Applies a cycle pattern and switches the component on.
+             *
+             * Takes the pattern array by reference so its length is deduced
+             * as @p N rather than passed as a separate hand-written count.
+             * A literal that disagreed with the array would otherwise
+             * silently truncate the pattern or drive an out-of-bounds read
+             * in CyclicSwitchable::process(); here the two cannot desync.
+             */
+            template <uint8_t N>
+            void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint32_t (&pattern)[N])
+            {
+                static_assert(N >= 1, "cycle pattern must be non-empty");
+                setOn(cyclicSwitchable, N, pattern);
+            }
+
             void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint8_t patternSize, const uint32_t *pattern)
             {
                 if (cyclicSwitchable != nullptr)
