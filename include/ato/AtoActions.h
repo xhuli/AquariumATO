@@ -236,13 +236,13 @@ namespace xal
              * in CyclicSwitchable::process(); here the two cannot desync.
              */
             template <uint8_t N>
-            void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint32_t (&pattern)[N])
+            static void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint32_t (&pattern)[N])
             {
                 static_assert(N >= 1, "cycle pattern must be non-empty");
                 setOn(cyclicSwitchable, N, pattern);
             }
 
-            void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint8_t patternSize, const uint32_t *pattern)
+            static void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint8_t patternSize, const uint32_t *pattern)
             {
                 if (cyclicSwitchable != nullptr)
                 {
@@ -254,7 +254,7 @@ namespace xal
                 }
             }
 
-            void setOn(AbstractSwitchable *switchable)
+            static void setOn(AbstractSwitchable *switchable)
             {
                 if (switchable != nullptr)
                 {
@@ -262,7 +262,7 @@ namespace xal
                 }
             }
 
-            void setOff(AbstractSwitchable *switchable)
+            static void setOff(AbstractSwitchable *switchable)
             {
                 if (switchable != nullptr)
                 {
