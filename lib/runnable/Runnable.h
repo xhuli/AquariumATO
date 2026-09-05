@@ -31,12 +31,16 @@ namespace xal
             return instance;
         }
 
+    public:
+        /* Non-copyable and non-movable: each instance is a distinct node in
+         * the registry linked list. Public (not private) so an accidental
+         * copy/move is reported as "use of deleted function" rather than the
+         * more confusing "is private". */
         Runnable(const Runnable &) = delete;
         Runnable &operator=(const Runnable &) = delete;
         Runnable(Runnable &&) = delete;
         Runnable &operator=(Runnable &&) = delete;
 
-    public:
         Runnable()
         {
             /* LIFO: head will point to last instance, first instance will point to null */
