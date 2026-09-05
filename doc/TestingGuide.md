@@ -203,7 +203,7 @@ test/test_ato_fsm/test_ato_fsm.cpp
 
 This suite verifies the state-transition behavior of `AtoFsm` and protects the transition-table design.
 
-### What it verifies
+### 5.1 What it verifies
 
 The suite covers:
 
@@ -233,7 +233,7 @@ test/test_cyclic_switchable/test_cyclic_switchable.cpp
 
 This suite verifies `CyclicSwitchable` behavior using a fake wrapped switchable and injected timestamps.
 
-### What it verifies
+### 6.1 What it verifies
 
 * `setOn()` starts the pattern and activates the wrapped output;
 * the pattern advances when the active interval expires;
@@ -252,7 +252,7 @@ test/test_liquid_level_sensor/test_liquid_level_sensor.cpp
 
 `LiquidLevelSensor` exposes `process(rawReading, nowMs)` so debounce and callback behavior can be exercised deterministically without physical sensor wiring.
 
-### What it verifies
+### 7.1 What it verifies
 
 * a single noisy reading does not change the debounced state;
 * a minority noise burst does not flip the debounced state;
@@ -274,7 +274,7 @@ test/test_push_button/test_push_button.cpp
 
 Like the liquid-level sensor, `PushButton` exposes a deterministic processing seam so tests can supply fabricated raw readings and timestamps.
 
-### What it verifies
+### 8.1 What it verifies
 
 * isolated noise does not register as a press;
 * minority noise does not change the debounced state;
@@ -293,7 +293,7 @@ test/test_ring_buffer/test_ring_buffer.cpp
 
 This suite protects the generic `RingBuffer<T, N>` utility used by the button and liquid-level sensor debounce logic.
 
-### What it verifies
+### 9.1 What it verifies
 
 * a fresh buffer is logically empty;
 * `average()` is safe on an empty buffer and returns `T()`;
@@ -318,7 +318,7 @@ test/test_runnable/
 
 This suite protects the `Runnable` self-registration mechanism used throughout the firmware.
 
-### What it verifies
+### 10.1 What it verifies
 
 * `setupAll()` reaches registered objects;
 * `loopAll()` reaches registered objects;
@@ -339,7 +339,7 @@ test/test_timed_switchable/test_timed_switchable.cpp
 
 This suite verifies the generic time-limited switch wrapper using a fake `AbstractSwitchable`.
 
-### What it verifies
+### 11.1 What it verifies
 
 * an ON duration expires, switches the wrapped component off, and fires the timeout callback;
 * an OFF duration expires, switches the wrapped component on, and fires the timeout callback;
@@ -357,7 +357,7 @@ test/test_timer/test_timer.cpp
 
 This suite verifies the generic timer independently of `millis()` by supplying explicit timestamps.
 
-### What it verifies
+### 12.1 What it verifies
 
 * an OFF timer does nothing;
 * a one-shot timer fires and switches itself off;

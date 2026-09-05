@@ -67,7 +67,7 @@ If the pump runs for its configured maximum runtime before the expected normal-l
 The LEDs are the quickest way to identify the controller state.
 
 | Indication | State | Meaning | Recommended action |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Green LED slow blink | Idle | Normal monitoring; pump is off | None |
 | Green LED solid | Dispensing — automatic | Water level dropped and the controller is topping off | Observe if the run is unusually long |
 | Green LED fast blink | Dispensing — manual | Pump was started manually | Watch the water level; short-press to stop |
@@ -85,7 +85,7 @@ Alarm patterns repeat in a long cycle. The audible sequence is played near the b
 The patterns are intentionally distinct:
 
 | State | Audible signature |
-|---|---|
+| --- | --- |
 | Reservoir Empty | 3 long buzzes |
 | Error | 2 short buzzes, then 1 long buzz |
 | Water Level Low | 1 long buzz, then 2 short buzzes |
@@ -106,7 +106,7 @@ The result depends on the current state.
 ### 5.1 Short press
 
 | Current state | Short-press action |
-|---|---|
+| --- | --- |
 | Idle | Start manual dispensing |
 | Automatic dispensing | Stop dispensing and return to Idle |
 | Manual dispensing | Stop dispensing and return to Idle |
@@ -243,7 +243,7 @@ It can be used to inspect and change runtime timer values and to enable state-ma
 ### 11.1 Commands
 
 | Command | Purpose |
-|---|---|
+| --- | --- |
 | `HELP` | Show available commands |
 | `GET` | Show the current configuration |
 | `SET <NAME> <VALUE>` | Change a setting immediately in RAM; not yet saved |
@@ -258,7 +258,7 @@ Commands are line-oriented. Unexpected arguments and invalid values are rejected
 ### 11.2 Configurable values
 
 | Name | Meaning | Current compiled default |
-|---|---|---:|
+| --- | --- | ---: |
 | `SLEEP_MAX_MS` | Maximum time the controller remains asleep before waking automatically | `7200000` (2 h) |
 | `IDLE_MAX_MS` | Maximum time continuously in Idle before the Idle-Too-Long warning | `21600000` (6 h) |
 | `PUMP_MAX_ON_MS` | Maximum single continuous pump runtime | `90000` (90 s) |
@@ -376,7 +376,7 @@ Do not run the pump dry during cleaning; keep the pump inlet fully submerged in 
 ## 14. Troubleshooting
 
 | Symptom | Likely checks |
-|---|---|
+| --- | --- |
 | Pump never starts automatically | Normal-level sensor state/position, sensor wiring, Sleep state, controller power |
 | Pump starts but stops after maximum runtime | Reservoir empty, blocked tubing, failed/weak pump, normal sensor not detecting restored level |
 | High-water alarm | Actual water level, siphon, stuck pump, normal sensor, high sensor contamination/position |

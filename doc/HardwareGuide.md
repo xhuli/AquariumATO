@@ -25,7 +25,7 @@ The repository contains board photographs and a rendered schematic under `doc/im
 The firmware pin assignments are defined in `src/main.cpp`.
 
 | Function | MCU pin | Required | Notes |
-|---|---:|---|---|
+| --- | ---: | --- | --- |
 | Red LED | D12 | Yes | Active HIGH in the current firmware |
 | Yellow LED | D11 | Yes | Active HIGH |
 | Green LED | D10 | Yes | Active HIGH |
@@ -152,7 +152,7 @@ build_flags =
 Use only the definitions that match the actually installed hardware.
 
 | Hardware fitted | `ATO_HAS_LOW_SENSOR` | `ATO_HAS_RESERVOIR_SENSOR` |
-|---|---|---|
+| --- | --- | --- |
 | Normal + High only | Off | Off |
 | Normal + High + Low | On | Off |
 | Normal + High + Reservoir | Off | On |
