@@ -276,7 +276,7 @@ namespace xal
                 return strtok(nullptr, " ") != nullptr;
             }
 
-            bool rejectExtraArguments()
+            static bool rejectExtraArguments()
             {
                 if (hasExtraArgument())
                 {
@@ -437,7 +437,7 @@ namespace xal
                 return true;
             }
 
-            void printHelp()
+            static void printHelp()
             {
                 Serial.println(F("Commands:"));
                 Serial.println(F("  HELP                 - show this text"));

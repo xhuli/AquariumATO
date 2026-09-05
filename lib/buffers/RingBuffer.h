@@ -66,7 +66,7 @@ namespace xal
          * @brief Gets the maximum number of values that can be stored in the buffer.
          * @return The maximum number of values that can be stored in the buffer.
          */
-        uint8_t capacity() const
+        static constexpr uint8_t capacity()
         {
             return N;
         }
