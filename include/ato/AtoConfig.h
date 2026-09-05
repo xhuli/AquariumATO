@@ -100,7 +100,7 @@ namespace xal
              */
             static AtoConfig loadOrDefault(const AtoConfig &defaults)
             {
-                AtoConfig loaded;
+                AtoConfig loaded{};
                 EEPROM.get(CONFIG_EEPROM_ADDRESS, loaded);
 
                 if (isStructurallyValid(loaded) && isValidAtoConfig(loaded))
@@ -129,7 +129,7 @@ namespace xal
                 config.version = CONFIG_VERSION;
                 config.crc8 = computeCrc8(config);
 
-                AtoConfig current;
+                AtoConfig current{};
                 EEPROM.get(CONFIG_EEPROM_ADDRESS, current);
 
                 if (memcmp(&current, &config, sizeof(AtoConfig)) != 0)
