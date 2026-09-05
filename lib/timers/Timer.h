@@ -44,7 +44,7 @@ namespace xal
     public:
         Timer() = default;
 
-        virtual ~Timer() = default;
+        ~Timer() override = default;
 
         virtual void setDurationMs(uint32_t durationMs)
         {
@@ -61,7 +61,7 @@ namespace xal
             this->callback = callback;
         }
 
-        virtual void setOn() override
+        void setOn() override
         {
             setOn(millis());
         }
@@ -79,13 +79,13 @@ namespace xal
             startMs = nowMs;
         }
 
-        virtual void setOff() override
+        void setOff() override
         {
             AbstractSwitchable::setOff();
             startMs = 0;
         }
 
-        virtual void setup() override
+        void setup() override
         {
         }
 
@@ -119,7 +119,7 @@ namespace xal
             }
         }
 
-        virtual void loop() override
+        void loop() override
         {
             process(millis());
         }

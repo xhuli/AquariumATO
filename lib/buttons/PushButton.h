@@ -65,7 +65,7 @@ namespace xal
         /**
          * @brief Default destructor.
          */
-        ~PushButton() = default;
+        ~PushButton() override = default;
 
         /**
          * @brief Sets the callback for a short press.
@@ -96,7 +96,7 @@ namespace xal
          * @note This function must be called in the setup() function of the sketch using the following code:
          * @example Runnable.setupAll();
          */
-        virtual void setup() override
+        void setup() override
         {
             pinMode(pin, pinModeState);
         }
@@ -158,7 +158,7 @@ namespace xal
          * @note This function must be called in the loop() function of the sketch using the following code:
          * @example Runnable.loopAll();
          */
-        virtual void loop() override
+        void loop() override
         {
             process(digitalRead(pin), millis());
         };

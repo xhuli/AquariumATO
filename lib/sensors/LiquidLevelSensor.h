@@ -72,7 +72,7 @@ namespace xal
         /**
          * @brief Default destructor.
          */
-        virtual ~LiquidLevelSensor() = default;
+        ~LiquidLevelSensor() override = default;
 
         /**
          * @brief Sets the callback function to be called when the liquid level sensor is triggered.

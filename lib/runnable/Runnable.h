@@ -46,9 +46,9 @@ namespace xal
 
         virtual ~Runnable() = default;
 
-        virtual void setup() = 0; /* todo: OVERRIDE !!! */
+        virtual void setup() = 0;
 
-        virtual void loop() = 0; /* todo: OVERRIDE !!! */
+        virtual void loop() = 0;
 
         static void setupAll()
         {

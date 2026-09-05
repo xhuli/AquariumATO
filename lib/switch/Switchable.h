@@ -88,7 +88,7 @@ namespace xal
             doSwitch(state);
         }
 
-        virtual void loop() override {}
+        void loop() override {}
     };
 
 } /* namespace xal */

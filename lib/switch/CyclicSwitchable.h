@@ -65,14 +65,14 @@ namespace xal
         /**
          * @brief Destroy the Cyclic Switchable object
          */
-        virtual ~CyclicSwitchable() = default;
+        ~CyclicSwitchable() override = default;
 
         /**
          * @brief Sets the cycle array.
          * @param cycleArraySize The size of the cycle array.
          * @param cycleArray The cycle array.
          */
-        void setCycleArray(const uint8_t cycleArraySize, const uint32_t *cycleArray)
+        void setCycleArray(const uint8_t cycleArraySize, const uint32_t *cycleArray) override
         {
             setCycleArray(cycleArraySize, cycleArray, millis());
         }
@@ -102,7 +102,7 @@ namespace xal
         /**
          * @brief Switches the component on.
          */
-        void setOn()
+        void setOn() override
         {
             setOn(millis());
         }
@@ -128,7 +128,7 @@ namespace xal
         /**
          * @brief Switches the component off.
          */
-        void setOff()
+        void setOff() override
         {
             if (isOn())
             {
@@ -140,7 +140,7 @@ namespace xal
         /**
          * @brief Toggles the component.
          */
-        void toggle()
+        void toggle() override
         {
             AbstractSwitchable::toggle();
             switchable.toggle();

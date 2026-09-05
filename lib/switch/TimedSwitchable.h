@@ -66,7 +66,7 @@ namespace xal
         /**
          * @brief Default destructor.
          */
-        virtual ~TimedSwitchable() = default;
+        ~TimedSwitchable() override = default;
 
         /**
          * @brief Sets the maximum duration that the component can stay on.
@@ -104,7 +104,7 @@ namespace xal
             offTimeElapsedCallback = callback;
         }
 
-        virtual void setOn()
+        void setOn() override
         {
             setOn(millis());
         }
@@ -123,7 +123,7 @@ namespace xal
             switchable.setOn();
         }
 
-        virtual void setOff()
+        void setOff() override
         {
             setOff(millis());
         }
@@ -140,7 +140,7 @@ namespace xal
             switchable.setOff();
         }
 
-        virtual void toggle()
+        void toggle() override
         {
             toggle(millis());
         }
@@ -157,7 +157,7 @@ namespace xal
             switchable.toggle();
         }
 
-        virtual void setup() override
+        void setup() override
         {
         }
 
@@ -195,7 +195,7 @@ namespace xal
          * @brief Executes the component's main logic.
          * @details This function is called repeatedly in the main loop.
          */
-        virtual void loop() override
+        void loop() override
         {
             process(millis());
         }
