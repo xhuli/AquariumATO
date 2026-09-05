@@ -45,7 +45,8 @@ Checks: >
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -hicpp-no-array-decay,
   -cppcoreguidelines-special-member-functions,
-  -hicpp-special-member-functions
+  -hicpp-special-member-functions,
+  -clang-diagnostic-shadow-field
 
 # Rationale for the non-obvious disables:
 #   modernize-deprecated-headers ...... <string.h> etc. are idiomatic in the
@@ -77,6 +78,11 @@ Checks: >
 #                                       Runnable is already non-copyable and
 #                                       non-movable, so the rule-of-five warning
 #                                       fires on an intentional, safe pattern.
+#   clang-diagnostic-shadow-field .... the `this->member = param` setter idiom
+#                                       is used consistently across lib/; the
+#                                       `this->` prefix already disambiguates.
+#                                       Broader -Wshadow (locals shadowing
+#                                       locals) stays on.
 
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*/(include|lib)/.*'
