@@ -152,7 +152,7 @@ bool traceVerbose = false;
 
 xal::ato::AtoConfigConsole atoConfigConsole(atoConfig, atoConfigDefaults, applyAtoConfig, traceEnabled, traceVerbose);
 
-/* << Cofigure helper functions >> */
+/* << Configure helper functions >> */
 
 void configureAtoActions() {
     atoActions.setRedLed(&redLed);
