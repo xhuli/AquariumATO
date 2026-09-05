@@ -1,0 +1,83 @@
+# clang-tidy configuration for AquariumATO.
+#
+# This is an Arduino / AVR C++11 firmware project: no heap in the hot path,
+# no exceptions or RTTI, no <cxxx> / std:: headers, C-style arrays and raw
+# byte buffers by design, hardware pin numbers and timing constants as bare
+# literals. A number of upstream checks assume desktop / modern-C++ idioms
+# that do not apply here and produce only noise; each is disabled below with
+# a reason. Everything not named keeps its default.
+#
+# Advisory only: WarningsAsErrors is empty and CI does not run clang-tidy
+# (see .github/workflows/) - this exists to keep editor / CLion inspections
+# signal-rich.
+
+Checks: >
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  hicpp-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -modernize-deprecated-headers,
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  -modernize-avoid-c-arrays,
+  -cppcoreguidelines-avoid-c-arrays,
+  -hicpp-avoid-c-arrays,
+  -hicpp-signed-bitwise,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-implicit-bool-conversion,
+  -readability-identifier-length,
+  -readability-uppercase-literal-suffix,
+  -bugprone-easily-swappable-parameters,
+  -misc-no-recursion,
+  -misc-include-cleaner,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -hicpp-no-array-decay,
+  -cppcoreguidelines-special-member-functions,
+  -hicpp-special-member-functions
+
+# Rationale for the non-obvious disables:
+#   modernize-deprecated-headers ...... <string.h> etc. are idiomatic in the
+#                                       Arduino ecosystem; the rest of the
+#                                       codebase uses global-namespace C names.
+#   *-avoid-c-arrays .................. LED/buzzer patterns, EEPROM images and
+#                                       serial line buffers are fixed C arrays
+#                                       on purpose; std::array is not used in
+#                                       this style.
+#   hicpp-signed-bitwise ............. uint8_t operands promote to int before
+#                                       a bitwise op, so correct 8-bit mask /
+#                                       CRC code trips this as a false positive.
+#   *-magic-numbers .................. hardware pin numbers, timing durations
+#                                       and bit masks are bare literals through-
+#                                       out; flagging every one drowns real
+#                                       findings.
+#   readability-implicit-bool-conversion  `if (someUint8)` is idiomatic here.
+#   misc-no-recursion ................ AtoActions' constexpr pattern-sum is
+#                                       deliberately recursive (strict C++11
+#                                       constexpr: no loops).
+#   *-avoid-non-const-global-variables  the Runnable self-registration registry
+#                                       and Arduino's own globals are inherent.
+#   *-pro-type-reinterpret-cast ...... needed to view the packed AtoConfig as
+#                                       bytes for CRC / EEPROM.
+#   *-pro-bounds-* / no-array-decay ... pervasive and unavoidable in byte-buffer
+#                                       firmware code.
+#   *-special-member-functions ....... every component is a Runnable subclass
+#                                       with a defaulted virtual destructor;
+#                                       Runnable is already non-copyable and
+#                                       non-movable, so the rule-of-five warning
+#                                       fires on an intentional, safe pattern.
+
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*/(include|lib)/.*'
+FormatStyle: file
