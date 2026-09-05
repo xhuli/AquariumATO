@@ -307,7 +307,7 @@ namespace xal
                 }
             }
 
-            void exit(State actOnState)
+            void exit()
             {
                 atoActions.onExitState();
             }
@@ -316,7 +316,7 @@ namespace xal
             {
                 if (this->state != actOnState)
                 {
-                    exit(actOnState);
+                    exit();
                     this->state = actOnState;
                     enter(actOnState);
                 }
