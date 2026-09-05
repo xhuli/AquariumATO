@@ -1,0 +1,9 @@
+# Normalize all text files to LF in the repository, regardless of a
+# contributor's core.autocrlf setting. Pairs with .editorconfig.
+* text=auto eol=lf
+
+# Binary assets: never touch line endings, never diff as text.
+*.png binary
+
+# Vendor export (EasyEDA BOM), shipped with CRLF - leave it untouched.
+*.csv -text
