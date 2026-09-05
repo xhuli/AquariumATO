@@ -58,7 +58,7 @@ namespace xal
          * @brief Constructs a CyclicSwitchable object with the specified switchable object.
          * @param switchable The switchable component which will be wrapped with cyclic functionality.
          */
-        CyclicSwitchable(AbstractSwitchable &switchable) : switchable(switchable)
+        explicit CyclicSwitchable(AbstractSwitchable &switchable) : switchable(switchable)
         {
         }
 

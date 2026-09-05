@@ -26,7 +26,7 @@ namespace xal
          * @brief Constructs an AbstractSwitchable object with the specified initial state.
          * @param state The initial state.
          */
-        AbstractSwitchable(SwitchState state)
+        explicit AbstractSwitchable(SwitchState state)
             : state(state)
         {
         }

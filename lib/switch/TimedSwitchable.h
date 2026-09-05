@@ -59,7 +59,7 @@ namespace xal
          * @brief Constructs a TimedSwitchable object with the specified pin number and initial state.
          * @param switchable The switchable component which will be wrapped with timed functionality.
          */
-        TimedSwitchable(AbstractSwitchable &switchable) : switchable(switchable)
+        explicit TimedSwitchable(AbstractSwitchable &switchable) : switchable(switchable)
         {
         }
 
