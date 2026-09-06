@@ -357,6 +357,14 @@ namespace xal {
                     return false;
                 }
 
+                if ((equalsIgnoreCase(name, "SLEEP_MAX_MS") || equalsIgnoreCase(name, "IDLE_MAX_MS")) &&
+                    numericValue == 0) {
+                    Serial.print(F("ERROR "));
+                    Serial.print(name);
+                    Serial.println(F(" must be greater than 0"));
+                    return false;
+                }
+
                 if (!equalsIgnoreCase(name, "SLEEP_MAX_MS") &&
                     !equalsIgnoreCase(name, "IDLE_MAX_MS") &&
                     !equalsIgnoreCase(name, "PUMP_MAX_ON_MS")) {
@@ -369,8 +377,29 @@ namespace xal {
                     return false;
                 }
 
+                if (equalsIgnoreCase(name, "SLEEP_MAX_MS")) {
+                    warnIfTimerBelowAdvisory(F("SLEEP_MAX_MS"), numericValue);
+                } else if (equalsIgnoreCase(name, "IDLE_MAX_MS")) {
+                    warnIfTimerBelowAdvisory(F("IDLE_MAX_MS"), numericValue);
+                }
+
                 Serial.println(F("Applied (not yet saved; use SAVE)."));
                 return true;
+            }
+
+            /**
+             * @brief Prints a non-fatal WARN line for a sleep/idle timer value
+             * that is legal but small enough to elapse almost as soon as its
+             * state is entered. See isBelowTimerAdvisoryMin().
+             */
+            static void warnIfTimerBelowAdvisory(const __FlashStringHelper *name, uint32_t value) {
+                if (isBelowTimerAdvisoryMin(value)) {
+                    Serial.print(F("WARN "));
+                    Serial.print(name);
+                    Serial.print(F(" below "));
+                    Serial.print(TIMER_MS_ADVISORY_MIN);
+                    Serial.println(F(" ms; its timer elapses within a minute of entering that state"));
+                }
             }
 
             static void printHelp() {
@@ -383,7 +412,10 @@ namespace xal {
                 Serial.println(F("  TRACE ON             - log FSM state changes as they happen"));
                 Serial.println(F("  TRACE ALL            - also log events that produced no change"));
                 Serial.println(F("  TRACE OFF            - stop logging"));
-                Serial.println(F("Fields: SLEEP_MAX_MS, IDLE_MAX_MS, PUMP_MAX_ON_MS"));
+                Serial.println(F("Fields:"));
+                Serial.println(F("  SLEEP_MAX_MS    - > 0 ms; warns if < 60000"));
+                Serial.println(F("  IDLE_MAX_MS     - > 0 ms; warns if < 60000"));
+                Serial.println(F("  PUMP_MAX_ON_MS  - 5000..180000 ms"));
             }
 
             void printConfig() {
@@ -393,6 +425,9 @@ namespace xal {
                 Serial.println(config.idleMaxDurationMs);
                 Serial.print(F("PUMP_MAX_ON_MS="));
                 Serial.println(config.pumpMaxOnDurationMs);
+
+                warnIfTimerBelowAdvisory(F("SLEEP_MAX_MS"), config.sleepMaxDurationMs);
+                warnIfTimerBelowAdvisory(F("IDLE_MAX_MS"), config.idleMaxDurationMs);
             }
         };
 

@@ -57,9 +57,11 @@ using xal::ato::applyValidatedAtoConfig;
 using xal::ato::AtoConfig;
 using xal::ato::AtoConfigConsole;
 using xal::ato::AtoConfigStore;
+using xal::ato::isBelowTimerAdvisoryMin;
 using xal::ato::isValidAtoConfig;
 using xal::ato::PUMP_MAX_ON_MS_MAX;
 using xal::ato::PUMP_MAX_ON_MS_MIN;
+using xal::ato::TIMER_MS_ADVISORY_MIN;
 
 namespace {
     /**
@@ -348,6 +350,64 @@ void test_valid_config_reaches_all_runtime_setters() {
 }
 
 /* ============================================================ */
+/* Sleep / idle timer: reject 0, allow small nonzero (advisory)   */
+/* ============================================================ */
+
+void test_zero_sleep_or_idle_is_rejected() {
+    TEST_ASSERT_FALSE(isValidAtoConfig(makeConfig(0, 1, 90000)));
+    TEST_ASSERT_FALSE(isValidAtoConfig(makeConfig(1, 0, 90000)));
+    TEST_ASSERT_FALSE(isValidAtoConfig(makeConfig(0, 0, 90000)));
+    TEST_ASSERT_TRUE(isValidAtoConfig(makeConfig(1, 1, 90000)));
+}
+
+void test_small_nonzero_sleep_or_idle_is_still_accepted() {
+    /* Only 0 is rejected - sub-minute values remain legal (with an advisory). */
+    TEST_ASSERT_TRUE(isValidAtoConfig(makeConfig(1, 30000, 90000)));
+    TEST_ASSERT_TRUE(isValidAtoConfig(makeConfig(30000, 1, 90000)));
+    TEST_ASSERT_TRUE(isValidAtoConfig(makeConfig(UINT32_MAX, UINT32_MAX, 90000)));
+}
+
+void test_timer_advisory_min_helper() {
+    TEST_ASSERT_FALSE(isBelowTimerAdvisoryMin(0));
+    TEST_ASSERT_TRUE(isBelowTimerAdvisoryMin(1));
+    TEST_ASSERT_TRUE(isBelowTimerAdvisoryMin(TIMER_MS_ADVISORY_MIN - 1));
+    TEST_ASSERT_FALSE(isBelowTimerAdvisoryMin(TIMER_MS_ADVISORY_MIN));
+    TEST_ASSERT_FALSE(isBelowTimerAdvisoryMin(90000));
+}
+
+void test_console_set_zero_sleep_is_rejected_without_side_effect() {
+    AtoConfig active = makeConfig(801, 802, 90000);
+    const AtoConfig defaults = active;
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    consoleApplyCalls = 0;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    char setSleepZero[] = "SET SLEEP_MAX_MS 0";
+    TEST_ASSERT_FALSE(console.executeLine(setSleepZero));
+    char setIdleZero[] = "SET IDLE_MAX_MS 0";
+    TEST_ASSERT_FALSE(console.executeLine(setIdleZero));
+
+    TEST_ASSERT_EQUAL_UINT32(801, active.sleepMaxDurationMs);
+    TEST_ASSERT_EQUAL_UINT32(802, active.idleMaxDurationMs);
+    TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
+}
+
+void test_console_set_small_nonzero_sleep_is_accepted() {
+    AtoConfig active = makeConfig(801, 802, 90000);
+    const AtoConfig defaults = active;
+    bool traceEnabled = false;
+    bool traceVerbose = false;
+    consoleApplyCalls = 0;
+    AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
+
+    char setSleepSmall[] = "SET SLEEP_MAX_MS 5000";
+    TEST_ASSERT_TRUE(console.executeLine(setSleepSmall));
+    TEST_ASSERT_EQUAL_UINT32(5000, active.sleepMaxDurationMs);
+    TEST_ASSERT_EQUAL_UINT8(1, consoleApplyCalls);
+}
+
+/* ============================================================ */
 /* P1 serial-console parser hardening                             */
 /* ============================================================ */
 
@@ -616,6 +676,11 @@ void setup() {
     RUN_TEST(test_console_valid_pump_set_is_accepted);
     RUN_TEST(test_invalid_config_cannot_reach_pump_timeout_setter);
     RUN_TEST(test_valid_config_reaches_all_runtime_setters);
+    RUN_TEST(test_zero_sleep_or_idle_is_rejected);
+    RUN_TEST(test_small_nonzero_sleep_or_idle_is_still_accepted);
+    RUN_TEST(test_timer_advisory_min_helper);
+    RUN_TEST(test_console_set_zero_sleep_is_rejected_without_side_effect);
+    RUN_TEST(test_console_set_small_nonzero_sleep_is_accepted);
     RUN_TEST(test_parse_uint32_boundaries_and_invalid_tokens);
     RUN_TEST(test_console_numeric_parse_failure_has_no_side_effect);
     RUN_TEST(test_console_accepts_full_uint32_for_unbounded_timer_field);

@@ -25,6 +25,20 @@ namespace xal {
         static constexpr uint32_t PUMP_MAX_ON_MS_MAX = xal::duration::MINUTES_3;
 
         /**
+         * Advisory (non-rejecting) floor for the sleep/idle timers. A value
+         * of 0 is rejected outright (Timer treats 0 as "always elapsed", so
+         * the timer would fire every loop); a nonzero value below this
+         * threshold is legal but makes the timer elapse within a minute of
+         * entering its state, which is almost always a mistake. The console
+         * prints a WARN line for values in (0, TIMER_MS_ADVISORY_MIN).
+         */
+        static constexpr uint32_t TIMER_MS_ADVISORY_MIN = xal::duration::MINUTES_1;
+
+        inline bool isBelowTimerAdvisoryMin(uint32_t ms) {
+            return ms > 0 && ms < TIMER_MS_ADVISORY_MIN;
+        }
+
+        /**
          * @brief Runtime-tunable ATO timing configuration, persisted to EEPROM.
          * @details Packed to guarantee a fixed, deterministic on-disk layout.
          * magic/version/crc8 are stamped and checked by AtoConfigStore — callers
@@ -52,7 +66,12 @@ namespace xal {
          * these runtime safety invariants before values are applied or saved.
          */
         inline bool isValidAtoConfig(const AtoConfig &config) {
-            return config.pumpMaxOnDurationMs >= PUMP_MAX_ON_MS_MIN &&
+            /* Timer treats 0 as "always elapsed", so a zero sleep/idle max
+               would fire its timer every loop - reject it. Small-but-nonzero
+               values are allowed (see isBelowTimerAdvisoryMin). */
+            return config.sleepMaxDurationMs > 0 &&
+                   config.idleMaxDurationMs > 0 &&
+                   config.pumpMaxOnDurationMs >= PUMP_MAX_ON_MS_MIN &&
                    config.pumpMaxOnDurationMs <= PUMP_MAX_ON_MS_MAX;
         }
 
