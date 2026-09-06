@@ -1,0 +1,17 @@
+# Project C/C++ style. clang-tidy's `FormatStyle: file` picks this up, and
+# it gives contributors a one-command formatter. The tree was reformatted
+# to match this in a single commit (see .git-blame-ignore-revs).
+Language: Cpp
+BasedOnStyle: LLVM
+BreakBeforeBraces: Attach
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+PointerAlignment: Right
+NamespaceIndentation: All
+ColumnLimit: 0
+SortIncludes: false
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: true
