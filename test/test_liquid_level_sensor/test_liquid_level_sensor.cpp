@@ -32,7 +32,7 @@ using xal::LiquidLevelSensor;
 
 namespace {
     /* Matches main.cpp's actual normalLevelSensor wiring
-       (WHEN_ON__PIN_HIGH, PERIODIC_PUSH_READING_PERIOD) so these tests
+       (WHEN_ON_PIN_HIGH, PERIODIC_PUSH_READING_PERIOD) so these tests
        exercise realistic values, not arbitrary numbers. */
     constexpr uint8_t PIN_STATE_WHEN_PRESENT = HIGH;
     constexpr uint32_t PUSH_INTERVAL_MS = 2000;
