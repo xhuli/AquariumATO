@@ -219,16 +219,44 @@ bool applyAtoConfig(const xal::ato::AtoConfig &config) {
 }
 
 /**
- * @brief FSM trace callback, registered via atoFsm.setTraceCallback() in
- * setup(). Prints a line only when tracing is enabled (TRACE ON/ALL from
- * the config console); with TRACE ON, only calls that produced a real
- * transition are shown, since dispatch() is only ever called on genuine
- * sensor/button/timer events (never from the hot loop), so this stays
- * sparse by construction. TRACE ALL additionally shows events that arrived
- * but matched no rule — useful for confirming whether an expected event
- * even reached the FSM.
+ * @brief Unconditional (trace-independent) advisory: if the FSM has just
+ * entered a state whose governing timer is configured below the advisory
+ * minimum, say so on Serial. Mirrors the console's SET/GET WARN lines but
+ * catches the case where a short value was already saved to EEPROM and only
+ * bites at runtime. IdleForTooLong / Sleeping are each entered at most once
+ * per episode, so this cannot spam. Reads the live global atoConfig, which
+ * AtoConfigConsole keeps in sync on every SET/RESET.
+ */
+void warnIfEnteringShortTimerState(xal::ato::State fromState, xal::ato::State toState, bool matched) {
+    if (!matched || toState == fromState) {
+        return;
+    }
+    if (toState == xal::ato::State::IdleForTooLong &&
+        xal::ato::isBelowTimerAdvisoryMin(atoConfig.idleMaxDurationMs)) {
+        Serial.print(F("WARN entered IdleForTooLong with IDLE_MAX_MS="));
+        Serial.print(atoConfig.idleMaxDurationMs);
+        Serial.println(F(" ms (below advisory minimum)"));
+    } else if (toState == xal::ato::State::Sleeping &&
+               xal::ato::isBelowTimerAdvisoryMin(atoConfig.sleepMaxDurationMs)) {
+        Serial.print(F("WARN entered Sleeping with SLEEP_MAX_MS="));
+        Serial.print(atoConfig.sleepMaxDurationMs);
+        Serial.println(F(" ms (below advisory minimum); will wake almost immediately"));
+    }
+}
+
+/**
+ * @brief FSM dispatch observer, registered via atoFsm.setTraceCallback() in
+ * setup(). Always emits the short-timer advisory above; the rest of the
+ * line is printed only when tracing is enabled (TRACE ON/ALL from the config
+ * console). With TRACE ON, only calls that produced a real transition are
+ * shown, since dispatch() is only ever called on genuine sensor/button/timer
+ * events (never from the hot loop), so this stays sparse by construction.
+ * TRACE ALL additionally shows events that arrived but matched no rule —
+ * useful for confirming whether an expected event even reached the FSM.
  */
 void printFsmTrace(xal::ato::State fromState, xal::ato::Event event, xal::ato::State toState, bool matched) {
+    warnIfEnteringShortTimerState(fromState, toState, matched);
+
     if (!traceEnabled) {
         return;
     }
