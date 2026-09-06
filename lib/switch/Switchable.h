@@ -8,8 +8,7 @@
 #include <Arduino.h>
 #include <Runnable.h>
 
-namespace xal
-{
+namespace xal {
 
     /**
      * @class Switchable
@@ -17,73 +16,59 @@ namespace xal
      * @implements AbstractSwitchable, Runnable
      */
     class Switchable : virtual public AbstractSwitchable,
-                       virtual public Runnable
-    {
+                       virtual public Runnable {
     protected:
         uint8_t pin;
         uint8_t pinValueWhenSwitchStateOn;
 
-        uint8_t getPinValueWhenSwitchStateOn()
-        {
+        uint8_t getPinValueWhenSwitchStateOn() {
             return pinValueWhenSwitchStateOn;
         }
 
-        uint8_t getPinValueWhenSwitchStateOff()
-        {
+        uint8_t getPinValueWhenSwitchStateOff() {
             return pinValueWhenSwitchStateOn == HIGH ? LOW : HIGH;
         }
 
     public:
         Switchable(uint8_t pin, uint8_t pinValueWhenSwitchStateOn)
-            : AbstractSwitchable(SwitchState::Off), pin(pin), pinValueWhenSwitchStateOn(pinValueWhenSwitchStateOn)
-        {
+            : AbstractSwitchable(SwitchState::Off), pin(pin), pinValueWhenSwitchStateOn(pinValueWhenSwitchStateOn) {
         }
 
         Switchable(SwitchState state, uint8_t pin, uint8_t pinValueWhenSwitchStateOn)
-            : AbstractSwitchable(state), pin(pin), pinValueWhenSwitchStateOn(pinValueWhenSwitchStateOn)
-        {
+            : AbstractSwitchable(state), pin(pin), pinValueWhenSwitchStateOn(pinValueWhenSwitchStateOn) {
         }
 
         ~Switchable() override = default;
 
-        void doSwitch(SwitchState state)
-        {
-            if (state == SwitchState::On)
-            {
+        void doSwitch(SwitchState state) {
+            if (state == SwitchState::On) {
                 digitalWrite(pin, getPinValueWhenSwitchStateOn());
-            }
-            else
-            {
+            } else {
                 digitalWrite(pin, getPinValueWhenSwitchStateOff());
             }
         }
 
-        void setOn() override
-        {
+        void setOn() override {
             AbstractSwitchable::setOn();
             doSwitch(SwitchState::On);
         }
 
-        void setOff() override
-        {
+        void setOff() override {
             AbstractSwitchable::setOff();
             doSwitch(SwitchState::Off);
         }
 
-        void toggle() override
-        {
+        void toggle() override {
             AbstractSwitchable::toggle();
             doSwitch(AbstractSwitchable::getState());
         }
 
-        void setState(SwitchState state) override
-        {
+        void setState(SwitchState state) override {
             AbstractSwitchable::setState(state);
             doSwitch(state);
         }
 
-        void setup() override
-        {
+        void setup() override {
             pinMode(pin, OUTPUT);
             doSwitch(state);
         }

@@ -36,8 +36,7 @@
 
 using xal::PushButton;
 
-namespace
-{
+namespace {
     /* Matches the actual production constants in main.cpp
        (PUSH_BUTTON_PIN_STATE_WHEN_RELEASED, PUSH_BUTTON_DEBOUNCE_MS,
        PUSH_BUTTON_LONG_PRESS_DURATION) so these tests exercise realistic
@@ -49,18 +48,15 @@ namespace
     uint8_t shortPressCount = 0;
     uint8_t longPressCount = 0;
 
-    void onShortPress()
-    {
+    void onShortPress() {
         shortPressCount++;
     }
 
-    void onLongPress()
-    {
+    void onLongPress() {
         longPressCount++;
     }
 
-    void resetCounters()
-    {
+    void resetCounters() {
         shortPressCount = 0;
         longPressCount = 0;
     }
@@ -69,8 +65,7 @@ namespace
      * @brief Wires callbacks on a button constructed directly in its final
      * storage location.
      */
-    void wireButton(PushButton &button)
-    {
+    void wireButton(PushButton &button) {
         button.setShortPressCallback(onShortPress);
         button.setLongPressCallback(onLongPress);
     }
@@ -79,10 +74,8 @@ namespace
      * @brief Calls process(level, atMs) `times` times in a row, simulating
      * that many consecutive loop() iterations reading the same raw level.
      */
-    void feed(PushButton &button, uint8_t level, uint8_t times, uint32_t atMs)
-    {
-        for (uint8_t i = 0; i < times; i++)
-        {
+    void feed(PushButton &button, uint8_t level, uint8_t times, uint32_t atMs) {
+        for (uint8_t i = 0; i < times; i++) {
             button.process(level, atMs);
         }
     }
@@ -92,8 +85,7 @@ namespace
 /* Debounce smoothing: the actual behavior this change added.    */
 /* ============================================================ */
 
-void test_single_noise_spike_does_not_register_as_pressed()
-{
+void test_single_noise_spike_does_not_register_as_pressed() {
     resetCounters();
     PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
     wireButton(button);
@@ -109,8 +101,7 @@ void test_single_noise_spike_does_not_register_as_pressed()
     TEST_ASSERT_EQUAL_UINT8(0, longPressCount);
 }
 
-void test_minority_noise_burst_does_not_flip_debounced_state()
-{
+void test_minority_noise_burst_does_not_flip_debounced_state() {
     resetCounters();
     PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
     wireButton(button);
@@ -125,8 +116,7 @@ void test_minority_noise_burst_does_not_flip_debounced_state()
     TEST_ASSERT_EQUAL_UINT8(0, longPressCount);
 }
 
-void test_sustained_signal_does_flip_debounced_state()
-{
+void test_sustained_signal_does_flip_debounced_state() {
     resetCounters();
     PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
     wireButton(button);
@@ -146,42 +136,39 @@ void test_sustained_signal_does_flip_debounced_state()
 /* correct after the debounce refactor.                          */
 /* ============================================================ */
 
-void test_short_press_fires_short_callback()
-{
+void test_short_press_fires_short_callback() {
     resetCounters();
     PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
     wireButton(button);
 
-    feed(button, HIGH, 16, 0);    /* press at t=0 */
-    feed(button, LOW, 16, 500);   /* release at t=500 (> debounce, < long-press) */
+    feed(button, HIGH, 16, 0);  /* press at t=0 */
+    feed(button, LOW, 16, 500); /* release at t=500 (> debounce, < long-press) */
 
     TEST_ASSERT_FALSE(button.isPressed());
     TEST_ASSERT_EQUAL_UINT8(1, shortPressCount);
     TEST_ASSERT_EQUAL_UINT8(0, longPressCount);
 }
 
-void test_long_press_fires_long_callback()
-{
+void test_long_press_fires_long_callback() {
     resetCounters();
     PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
     wireButton(button);
 
-    feed(button, HIGH, 16, 0);     /* press at t=0 */
-    feed(button, LOW, 16, 4000);   /* release at t=4000 (> long-press threshold) */
+    feed(button, HIGH, 16, 0);   /* press at t=0 */
+    feed(button, LOW, 16, 4000); /* release at t=4000 (> long-press threshold) */
 
     TEST_ASSERT_FALSE(button.isPressed());
     TEST_ASSERT_EQUAL_UINT8(0, shortPressCount);
     TEST_ASSERT_EQUAL_UINT8(1, longPressCount);
 }
 
-void test_press_shorter_than_debounce_fires_no_callback()
-{
+void test_press_shorter_than_debounce_fires_no_callback() {
     resetCounters();
     PushButton button(/* pin */ 2, INPUT, PIN_STATE_WHEN_RELEASED, DEBOUNCE_MS, LONG_PRESS_MS);
     wireButton(button);
 
-    feed(button, HIGH, 16, 0);    /* press at t=0 */
-    feed(button, LOW, 16, 100);   /* release at t=100 (<= debounce of 160: too short, ignored) */
+    feed(button, HIGH, 16, 0);  /* press at t=0 */
+    feed(button, LOW, 16, 100); /* release at t=100 (<= debounce of 160: too short, ignored) */
 
     /* The debounced state still updates to released even though no
        callback fires -- matches the original behavior of updating
@@ -195,8 +182,7 @@ void test_press_shorter_than_debounce_fires_no_callback()
 /* Unity runner                                                   */
 /* ============================================================ */
 
-void setup()
-{
+void setup() {
     delay(2000);
 
     UNITY_BEGIN();
@@ -211,6 +197,5 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
+void loop() {
 }

@@ -7,11 +7,9 @@
 
 #include <Arduino.h>
 
-namespace xal
-{
+namespace xal {
 
-    class AbstractCyclicSwitchable : virtual public AbstractSwitchable
-    {
+    class AbstractCyclicSwitchable : virtual public AbstractSwitchable {
     private:
         uint8_t cycleArraySize;
         const uint32_t *cycleArray;

@@ -32,13 +32,11 @@
 
 using xal::RingBuffer;
 
-
 /* ============================================================ */
 /* Empty-state and clear() semantics                            */
 /* ============================================================ */
 
-void test_fresh_buffer_is_empty_and_average_is_default_value()
-{
+void test_fresh_buffer_is_empty_and_average_is_default_value() {
     RingBuffer<uint8_t, 4> rb;
 
     TEST_ASSERT_TRUE(rb.isEmpty());
@@ -47,8 +45,7 @@ void test_fresh_buffer_is_empty_and_average_is_default_value()
     TEST_ASSERT_EQUAL_UINT8(0, rb.average());
 }
 
-void test_clear_makes_buffer_logically_empty()
-{
+void test_clear_makes_buffer_logically_empty() {
     RingBuffer<uint8_t, 4> rb;
     rb.push(10);
     rb.push(20);
@@ -62,8 +59,7 @@ void test_clear_makes_buffer_logically_empty()
     TEST_ASSERT_EQUAL_UINT8(0, rb.average());
 }
 
-void test_push_after_clear_behaves_like_fresh_buffer()
-{
+void test_push_after_clear_behaves_like_fresh_buffer() {
     RingBuffer<uint8_t, 4> rb;
     rb.fill(99);
     rb.clear();
@@ -87,8 +83,7 @@ void test_push_after_clear_behaves_like_fresh_buffer()
 /* since no wraparound has occurred yet.                        */
 /* ============================================================ */
 
-void test_partial_fill_get_returns_values_in_push_order()
-{
+void test_partial_fill_get_returns_values_in_push_order() {
     RingBuffer<uint8_t, 4> rb;
     rb.push(1);
     rb.push(2);
@@ -98,8 +93,7 @@ void test_partial_fill_get_returns_values_in_push_order()
     TEST_ASSERT_EQUAL_UINT8(2, rb.get(1)); /* newest */
 }
 
-void test_partial_fill_average_is_correct()
-{
+void test_partial_fill_average_is_correct() {
     RingBuffer<uint8_t, 4> rb;
     rb.push(1);
     rb.push(2);
@@ -112,8 +106,7 @@ void test_partial_fill_average_is_correct()
 /* Full buffer, no wraparound yet: still starts at physical 0.   */
 /* ============================================================ */
 
-void test_exactly_full_get_returns_values_in_push_order()
-{
+void test_exactly_full_get_returns_values_in_push_order() {
     RingBuffer<uint8_t, 4> rb;
     rb.push(10);
     rb.push(20);
@@ -134,8 +127,7 @@ void test_exactly_full_get_returns_values_in_push_order()
 /* happens to sit at raw physical index 0..N-1.                 */
 /* ============================================================ */
 
-void test_wrapped_get_returns_oldest_to_newest_order()
-{
+void test_wrapped_get_returns_oldest_to_newest_order() {
     RingBuffer<uint8_t, 4> rb;
     /* First 4 pushes fill the buffer; these get evicted below. */
     rb.push(1);
@@ -156,8 +148,7 @@ void test_wrapped_get_returns_oldest_to_newest_order()
     TEST_ASSERT_EQUAL_UINT8(40, rb.get(3)); /* newest value */
 }
 
-void test_wrapped_average_is_correct()
-{
+void test_wrapped_average_is_correct() {
     RingBuffer<uint8_t, 4> rb;
     rb.push(1);
     rb.push(2);
@@ -172,13 +163,11 @@ void test_wrapped_average_is_correct()
     TEST_ASSERT_EQUAL_UINT8(25, rb.average());
 }
 
-void test_wrapped_multiple_times_still_correct()
-{
+void test_wrapped_multiple_times_still_correct() {
     RingBuffer<uint8_t, 4> rb;
     /* Push 10 values (more than 2x capacity) through a size-4 buffer;
        only the last 4 should remain: 70, 80, 90, 100. */
-    for (uint8_t i = 1; i <= 10; i++)
-    {
+    for (uint8_t i = 1; i <= 10; i++) {
         rb.push(i * 10);
     }
 
@@ -194,8 +183,7 @@ void test_wrapped_multiple_times_still_correct()
 /* and should interact correctly with the fixed get().           */
 /* ============================================================ */
 
-void test_fill_sets_every_slot_to_same_value()
-{
+void test_fill_sets_every_slot_to_same_value() {
     RingBuffer<uint8_t, 4> rb;
     rb.fill(7);
 
@@ -211,8 +199,7 @@ void test_fill_sets_every_slot_to_same_value()
 /* Unity runner                                                  */
 /* ============================================================ */
 
-void setup()
-{
+void setup() {
     delay(2000);
 
     UNITY_BEGIN();
@@ -231,6 +218,5 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
+void loop() {
 }

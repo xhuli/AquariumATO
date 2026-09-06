@@ -6,8 +6,7 @@
 #include <Runnable.h>
 #include <api/AbstractSwitchable.h>
 
-namespace xal
-{
+namespace xal {
 
     /**
      * @class Timer
@@ -18,8 +17,7 @@ namespace xal
      * @implements Runnable, AbstractSwitchable
      */
     class Timer : virtual public AbstractSwitchable,
-                  virtual public Runnable
-    {
+                  virtual public Runnable {
         typedef void (*Callback)(); /**< Type definition for the timer callback function. */
 
     private:
@@ -36,8 +34,7 @@ namespace xal
          * @param durationMs The duration to check against.
          * @return True if the timer has elapsed, false otherwise.
          */
-        bool hasElapsed(uint32_t nowMs, uint32_t durationMs) const
-        {
+        bool hasElapsed(uint32_t nowMs, uint32_t durationMs) const {
             return (nowMs - startMs >= durationMs);
         }
 
@@ -46,23 +43,19 @@ namespace xal
 
         ~Timer() override = default;
 
-        virtual void setDurationMs(uint32_t durationMs)
-        {
+        virtual void setDurationMs(uint32_t durationMs) {
             this->durationMs = durationMs;
         }
 
-        virtual void setAutoRestart(bool doAutoRestart)
-        {
+        virtual void setAutoRestart(bool doAutoRestart) {
             this->doAutoRestart = doAutoRestart;
         }
 
-        virtual void setCallback(Callback callback)
-        {
+        virtual void setCallback(Callback callback) {
             this->callback = callback;
         }
 
-        void setOn() override
-        {
+        void setOn() override {
             setOn(millis());
         }
 
@@ -73,20 +66,17 @@ namespace xal
          * fabricated timestamps in tests, with no hardware dependency.
          * @param nowMs The current time in milliseconds.
          */
-        void setOn(uint32_t nowMs)
-        {
+        void setOn(uint32_t nowMs) {
             AbstractSwitchable::setOn();
             startMs = nowMs;
         }
 
-        void setOff() override
-        {
+        void setOff() override {
             AbstractSwitchable::setOff();
             startMs = 0;
         }
 
-        void setup() override
-        {
+        void setup() override {
         }
 
         /**
@@ -96,31 +86,23 @@ namespace xal
          * fabricated timestamp in tests.
          * @param nowMs The current time in milliseconds (normally millis()).
          */
-        void process(uint32_t nowMs)
-        {
-            if (isOn())
-            {
-                if (hasElapsed(nowMs, durationMs))
-                {
-                    if (callback != nullptr)
-                    {
+        void process(uint32_t nowMs) {
+            if (isOn()) {
+                if (hasElapsed(nowMs, durationMs)) {
+                    if (callback != nullptr) {
                         callback();
                     }
 
-                    if (doAutoRestart)
-                    {
+                    if (doAutoRestart) {
                         startMs = nowMs;
-                    }
-                    else
-                    {
+                    } else {
                         setOff();
                     }
                 }
             }
         }
 
-        void loop() override
-        {
+        void loop() override {
             process(millis());
         }
     };

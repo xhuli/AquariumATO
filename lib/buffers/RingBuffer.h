@@ -4,8 +4,7 @@
 
 #include <Arduino.h>
 
-namespace xal
-{
+namespace xal {
 
     /**
      * @brief A class representing a ring buffer.
@@ -17,8 +16,7 @@ namespace xal
      * @tparam N The maximum number of elements that can be stored in the buffer.
      */
     template <typename T, uint8_t N>
-    class RingBuffer
-    {
+    class RingBuffer {
     private:
         T buffer[N];       /**< The buffer array. */
         uint8_t index = 0; /**< The index for the buffer. */
@@ -39,8 +37,7 @@ namespace xal
          * @brief Checks if the buffer is empty.
          * @return True if the buffer is empty, false otherwise.
          */
-        bool isEmpty() const
-        {
+        bool isEmpty() const {
             return count == 0;
         }
 
@@ -48,8 +45,7 @@ namespace xal
          * @brief Checks if the buffer is full.
          * @return True if the buffer is full, false otherwise.
          */
-        bool isFull() const
-        {
+        bool isFull() const {
             return count == N;
         }
 
@@ -57,8 +53,7 @@ namespace xal
          * @brief Gets the number of elements in the buffer.
          * @return The number of elements in the buffer.
          */
-        uint8_t size() const
-        {
+        uint8_t size() const {
             return count;
         }
 
@@ -66,8 +61,7 @@ namespace xal
          * @brief Gets the maximum number of values that can be stored in the buffer.
          * @return The maximum number of values that can be stored in the buffer.
          */
-        static constexpr uint8_t capacity()
-        {
+        static constexpr uint8_t capacity() {
             return N;
         }
 
@@ -76,13 +70,11 @@ namespace xal
          * @param value The value to add.
          * @return True if the value was added, false otherwise.
          */
-        bool push(T value)
-        {
+        bool push(T value) {
             buffer[index] = value;
             index = (index + 1) % N;
 
-            if (!isFull())
-            {
+            if (!isFull()) {
                 count++;
             }
 
@@ -95,8 +87,7 @@ namespace xal
          * @param logicalIndex The logical index of the value to get, in [0, size()).
          * @return The value at that logical position.
          */
-        T get(uint8_t logicalIndex) const
-        {
+        T get(uint8_t logicalIndex) const {
             uint8_t start = isFull() ? index : 0;
             uint8_t physicalIndex = (start + logicalIndex) % N;
             return buffer[physicalIndex];
@@ -106,10 +97,8 @@ namespace xal
          * @brief Fills the buffer and sets all values to the specified value.
          * @param value The value to set all elements to.
          */
-        void fill(T value)
-        {
-            for (uint8_t i = 0; i < N; i++)
-            {
+        void fill(T value) {
+            for (uint8_t i = 0; i < N; i++) {
                 push(value);
             }
         }
@@ -117,8 +106,7 @@ namespace xal
         /**
          * @brief Clears the buffer.
          */
-        void clear()
-        {
+        void clear() {
             fill(T());
             index = 0;
             count = 0;
@@ -128,16 +116,13 @@ namespace xal
          * @brief Gets the average of all values in the buffer.
          * @return The average of all values in the buffer.
          */
-        T average() const
-        {
-            if (count == 0)
-            {
+        T average() const {
+            if (count == 0) {
                 return T();
             }
 
             double sum = 0;
-            for (uint8_t i = 0; i < count; i++)
-            {
+            for (uint8_t i = 0; i < count; i++) {
                 sum += get(i);
             }
 

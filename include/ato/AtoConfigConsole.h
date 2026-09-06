@@ -9,10 +9,8 @@
 
 #include "AtoConfig.h"
 
-namespace xal
-{
-    namespace ato
-    {
+namespace xal {
+    namespace ato {
 
         /**
          * @class AtoConfigConsole
@@ -40,8 +38,7 @@ namespace xal
          *
          * @implements Runnable
          */
-        class AtoConfigConsole : public Runnable
-        {
+        class AtoConfigConsole : public Runnable {
             typedef bool (*ApplyCallback)(const AtoConfig &);
 
         private:
@@ -81,38 +78,30 @@ namespace xal
                   defaults(defaults),
                   applyCallback(applyCallback),
                   traceEnabled(traceEnabled),
-                  traceVerbose(traceVerbose)
-            {
+                  traceVerbose(traceVerbose) {
             }
 
             ~AtoConfigConsole() override = default;
 
-            void setup() override
-            {
+            void setup() override {
                 /* Serial.begin() is expected to be called once in the sketch's
                    own setup(); this class only reads from an already-initialized
                    Serial and never calls Serial.begin() itself. */
             }
 
-            void loop() override
-            {
-                while (Serial.available() > 0)
-                {
+            void loop() override {
+                while (Serial.available() > 0) {
                     const InputResult result = processInputChar((char)Serial.read());
 
-                    if (result == INPUT_LINE_TOO_LONG)
-                    {
+                    if (result == INPUT_LINE_TOO_LONG) {
                         Serial.println(F("ERROR line too long"));
-                    }
-                    else if (result == INPUT_LINE_READY)
-                    {
+                    } else if (result == INPUT_LINE_READY) {
                         executeBufferedLine();
                     }
                 }
             }
 
-            enum InputResult
-            {
+            enum InputResult {
                 INPUT_NONE,
                 INPUT_LINE_READY,
                 INPUT_LINE_TOO_LONG
@@ -126,41 +115,33 @@ namespace xal
              * reports INPUT_LINE_TOO_LONG; the terminating newline only restores
              * normal input processing.
              */
-            InputResult processInputChar(char c)
-            {
-                if (discardUntilNewline)
-                {
-                    if (c == '\n')
-                    {
+            InputResult processInputChar(char c) {
+                if (discardUntilNewline) {
+                    if (c == '\n') {
                         discardUntilNewline = false;
                         bufferLen = 0;
                     }
                     return INPUT_NONE;
                 }
 
-                if (c == '\r')
-                {
+                if (c == '\r') {
                     return INPUT_NONE;
                 }
 
-                if (c == '\n')
-                {
+                if (c == '\n') {
                     buffer[bufferLen] = '\0';
                     bufferLen = 0;
                     return INPUT_LINE_READY;
                 }
 
-                if (c == '\b' || c == 0x7F)
-                {
-                    if (bufferLen > 0)
-                    {
+                if (c == '\b' || c == 0x7F) {
+                    if (bufferLen > 0) {
                         bufferLen--;
                     }
                     return INPUT_NONE;
                 }
 
-                if (bufferLen < (BUFFER_SIZE - 1))
-                {
+                if (bufferLen < (BUFFER_SIZE - 1)) {
                     buffer[bufferLen++] = c;
                     return INPUT_NONE;
                 }
@@ -173,24 +154,19 @@ namespace xal
             /**
              * @brief Parses an exact decimal uint32_t without libc overflow rules.
              */
-            static bool parseUint32(const char *text, uint32_t &result)
-            {
-                if (text == nullptr || *text == '\0')
-                {
+            static bool parseUint32(const char *text, uint32_t &result) {
+                if (text == nullptr || *text == '\0') {
                     return false;
                 }
 
                 uint32_t value = 0;
-                while (*text != '\0')
-                {
-                    if (*text < '0' || *text > '9')
-                    {
+                while (*text != '\0') {
+                    if (*text < '0' || *text > '9') {
                         return false;
                     }
 
                     const uint8_t digit = static_cast<uint8_t>(*text - '0');
-                    if (value > (UINT32_MAX - digit) / 10U)
-                    {
+                    if (value > (UINT32_MAX - digit) / 10U) {
                         return false;
                     }
 
@@ -208,13 +184,11 @@ namespace xal
              * are valid. Errors are printed with the ERROR prefix.
              * This wrapper is public for deterministic Unity coverage.
              */
-            bool executeLine(char *line)
-            {
+            bool executeLine(char *line) {
                 return handleLine(line);
             }
 
-            bool executeBufferedLine()
-            {
+            bool executeBufferedLine() {
                 return handleLine(buffer);
             }
 
@@ -226,29 +200,20 @@ namespace xal
              * This is public to allow deterministic Unity coverage without
              * mocking HardwareSerial.
              */
-            bool trySetValue(const char *name, uint32_t numericValue)
-            {
+            bool trySetValue(const char *name, uint32_t numericValue) {
                 AtoConfig candidate = config;
 
-                if (equalsIgnoreCase(name, "SLEEP_MAX_MS"))
-                {
+                if (equalsIgnoreCase(name, "SLEEP_MAX_MS")) {
                     candidate.sleepMaxDurationMs = numericValue;
-                }
-                else if (equalsIgnoreCase(name, "IDLE_MAX_MS"))
-                {
+                } else if (equalsIgnoreCase(name, "IDLE_MAX_MS")) {
                     candidate.idleMaxDurationMs = numericValue;
-                }
-                else if (equalsIgnoreCase(name, "PUMP_MAX_ON_MS"))
-                {
+                } else if (equalsIgnoreCase(name, "PUMP_MAX_ON_MS")) {
                     candidate.pumpMaxOnDurationMs = numericValue;
-                }
-                else
-                {
+                } else {
                     return false;
                 }
 
-                if (!isValidAtoConfig(candidate) || !applyCallback(candidate))
-                {
+                if (!isValidAtoConfig(candidate) || !applyCallback(candidate)) {
                     return false;
                 }
 
@@ -257,12 +222,9 @@ namespace xal
             }
 
         private:
-            static bool equalsIgnoreCase(const char *a, const char *b)
-            {
-                while (*a && *b)
-                {
-                    if (tolower((unsigned char)*a) != tolower((unsigned char)*b))
-                    {
+            static bool equalsIgnoreCase(const char *a, const char *b) {
+                while (*a && *b) {
+                    if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) {
                         return false;
                     }
                     a++;
@@ -271,65 +233,53 @@ namespace xal
                 return *a == *b;
             }
 
-            static bool hasExtraArgument()
-            {
+            static bool hasExtraArgument() {
                 return strtok(nullptr, " ") != nullptr;
             }
 
-            static bool rejectExtraArguments()
-            {
-                if (hasExtraArgument())
-                {
+            static bool rejectExtraArguments() {
+                if (hasExtraArgument()) {
                     Serial.println(F("ERROR unexpected argument"));
                     return true;
                 }
                 return false;
             }
 
-            bool handleLine(char *line)
-            {
+            bool handleLine(char *line) {
                 char *command = strtok(line, " ");
-                if (command == nullptr)
-                {
+                if (command == nullptr) {
                     return true;
                 }
 
-                if (equalsIgnoreCase(command, "HELP"))
-                {
+                if (equalsIgnoreCase(command, "HELP")) {
                     if (rejectExtraArguments())
                         return false;
                     printHelp();
                     return true;
                 }
-                if (equalsIgnoreCase(command, "GET"))
-                {
+                if (equalsIgnoreCase(command, "GET")) {
                     if (rejectExtraArguments())
                         return false;
                     printConfig();
                     return true;
                 }
-                if (equalsIgnoreCase(command, "SET"))
-                {
+                if (equalsIgnoreCase(command, "SET")) {
                     return handleSet();
                 }
-                if (equalsIgnoreCase(command, "SAVE"))
-                {
+                if (equalsIgnoreCase(command, "SAVE")) {
                     if (rejectExtraArguments())
                         return false;
-                    if (AtoConfigStore::save(config))
-                    {
+                    if (AtoConfigStore::save(config)) {
                         Serial.println(F("Saved to EEPROM."));
                         return true;
                     }
                     Serial.println(F("ERROR invalid config; not saved."));
                     return false;
                 }
-                if (equalsIgnoreCase(command, "RESET"))
-                {
+                if (equalsIgnoreCase(command, "RESET")) {
                     if (rejectExtraArguments())
                         return false;
-                    if (applyCallback(defaults))
-                    {
+                    if (applyCallback(defaults)) {
                         config = defaults;
                         Serial.println(F("Reset to compiled defaults (not yet saved; use SAVE)."));
                         return true;
@@ -337,8 +287,7 @@ namespace xal
                     Serial.println(F("ERROR compiled defaults are invalid; reset refused."));
                     return false;
                 }
-                if (equalsIgnoreCase(command, "TRACE"))
-                {
+                if (equalsIgnoreCase(command, "TRACE")) {
                     return handleTrace();
                 }
 
@@ -349,36 +298,30 @@ namespace xal
             /**
              * @brief TRACE ON|ALL|OFF — toggles live FSM dispatch tracing.
              */
-            bool handleTrace()
-            {
+            bool handleTrace() {
                 char *mode = strtok(nullptr, " ");
-                if (mode == nullptr)
-                {
+                if (mode == nullptr) {
                     Serial.println(F("ERROR usage: TRACE ON|ALL|OFF. Type HELP."));
                     return false;
                 }
-                if (hasExtraArgument())
-                {
+                if (hasExtraArgument()) {
                     Serial.println(F("ERROR unexpected argument"));
                     return false;
                 }
 
-                if (equalsIgnoreCase(mode, "ON"))
-                {
+                if (equalsIgnoreCase(mode, "ON")) {
                     traceEnabled = true;
                     traceVerbose = false;
                     Serial.println(F("Trace ON (state changes only)."));
                     return true;
                 }
-                if (equalsIgnoreCase(mode, "ALL"))
-                {
+                if (equalsIgnoreCase(mode, "ALL")) {
                     traceEnabled = true;
                     traceVerbose = true;
                     Serial.println(F("Trace ALL (includes ignored events)."));
                     return true;
                 }
-                if (equalsIgnoreCase(mode, "OFF"))
-                {
+                if (equalsIgnoreCase(mode, "OFF")) {
                     traceEnabled = false;
                     traceVerbose = false;
                     Serial.println(F("Trace OFF."));
@@ -389,46 +332,39 @@ namespace xal
                 return false;
             }
 
-            bool handleSet()
-            {
+            bool handleSet() {
                 char *name = strtok(nullptr, " ");
                 char *value = strtok(nullptr, " ");
 
-                if (name == nullptr || value == nullptr)
-                {
+                if (name == nullptr || value == nullptr) {
                     Serial.println(F("ERROR usage: SET <NAME> <VALUE>. Type HELP."));
                     return false;
                 }
-                if (hasExtraArgument())
-                {
+                if (hasExtraArgument()) {
                     Serial.println(F("ERROR unexpected argument"));
                     return false;
                 }
 
                 uint32_t numericValue = 0;
-                if (!parseUint32(value, numericValue))
-                {
+                if (!parseUint32(value, numericValue)) {
                     Serial.println(F("ERROR invalid value"));
                     return false;
                 }
 
                 if (equalsIgnoreCase(name, "PUMP_MAX_ON_MS") &&
-                    (numericValue < PUMP_MAX_ON_MS_MIN || numericValue > PUMP_MAX_ON_MS_MAX))
-                {
+                    (numericValue < PUMP_MAX_ON_MS_MIN || numericValue > PUMP_MAX_ON_MS_MAX)) {
                     Serial.println(F("ERROR PUMP_MAX_ON_MS range 5000..180000"));
                     return false;
                 }
 
                 if (!equalsIgnoreCase(name, "SLEEP_MAX_MS") &&
                     !equalsIgnoreCase(name, "IDLE_MAX_MS") &&
-                    !equalsIgnoreCase(name, "PUMP_MAX_ON_MS"))
-                {
+                    !equalsIgnoreCase(name, "PUMP_MAX_ON_MS")) {
                     Serial.println(F("ERROR unknown field. Type HELP."));
                     return false;
                 }
 
-                if (!trySetValue(name, numericValue))
-                {
+                if (!trySetValue(name, numericValue)) {
                     Serial.println(F("ERROR invalid config; unchanged."));
                     return false;
                 }
@@ -437,8 +373,7 @@ namespace xal
                 return true;
             }
 
-            static void printHelp()
-            {
+            static void printHelp() {
                 Serial.println(F("Commands:"));
                 Serial.println(F("  HELP                 - show this text"));
                 Serial.println(F("  GET                  - show current config"));
@@ -451,8 +386,7 @@ namespace xal
                 Serial.println(F("Fields: SLEEP_MAX_MS, IDLE_MAX_MS, PUMP_MAX_ON_MS"));
             }
 
-            void printConfig()
-            {
+            void printConfig() {
                 Serial.print(F("SLEEP_MAX_MS="));
                 Serial.println(config.sleepMaxDurationMs);
                 Serial.print(F("IDLE_MAX_MS="));

@@ -16,10 +16,8 @@
 
 /* << Constants >> */
 
-namespace ato
-{
-    namespace McuPin
-    {
+namespace ato {
+    namespace McuPin {
         constexpr uint8_t RedLed = 12;
         constexpr uint8_t YellowLed = 11;
         constexpr uint8_t GreenLed = 10;
@@ -249,8 +247,7 @@ void printFsmTrace(xal::ato::State fromState, xal::ato::Event event, xal::ato::S
     Serial.println();
 }
 
-void setup()
-{
+void setup() {
     /* Required for the runtime config console (GET/SET/SAVE/RESET). Safe to
        leave enabled with nothing connected: Serial.available() just returns
        0 and AtoConfigConsole::loop() becomes a no-op. */
@@ -281,8 +278,7 @@ void setup()
     wdt_enable(WDTO_2S); /* !!! do not introduce delays bigger than this !!! */
 }
 
-void loop()
-{
+void loop() {
     /* Loop all runnables */
     xal::Runnable::loopAll();
 

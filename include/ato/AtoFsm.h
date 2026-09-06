@@ -5,13 +5,10 @@
 #include <Arduino.h>
 #include "AtoActions.h"
 
-namespace xal
-{
-    namespace ato
-    {
+namespace xal {
+    namespace ato {
 
-        enum class State : uint8_t
-        {
+        enum class State : uint8_t {
             Idle,
             DispensingInAutoMode,
             DispensingInManualMode,
@@ -23,8 +20,7 @@ namespace xal
             Error
         };
 
-        enum class Event : uint8_t
-        {
+        enum class Event : uint8_t {
             HighLevelSensorIsTriggered,
             HighLevelSensorNotTriggered,
 
@@ -50,52 +46,47 @@ namespace xal
          * State, for use in trace/debug output. Costs no RAM — Serial.print()
          * reads directly from flash via the returned __FlashStringHelper*.
          */
-        inline const __FlashStringHelper *stateName(State state)
-        {
-            switch (state)
-            {
-                default:
-                case State::Idle:                   return F("Idle");
-                case State::IdleForTooLong:         return F("IdleForTooLong");
-                case State::DispensingInAutoMode:   return F("DispensingInAutoMode");
-                case State::DispensingInManualMode: return F("DispensingInManualMode");
-                case State::WaterLevelLow:          return F("WaterLevelLow");
-                case State::WaterLevelHigh:         return F("WaterLevelHigh");
-                case State::ReservoirEmpty:         return F("ReservoirEmpty");
-                case State::Sleeping:               return F("Sleeping");
-                case State::Error:                  return F("Error");
+        inline const __FlashStringHelper *stateName(State state) {
+            switch (state) {
+            default:
+            case State::Idle: return F("Idle");
+            case State::IdleForTooLong: return F("IdleForTooLong");
+            case State::DispensingInAutoMode: return F("DispensingInAutoMode");
+            case State::DispensingInManualMode: return F("DispensingInManualMode");
+            case State::WaterLevelLow: return F("WaterLevelLow");
+            case State::WaterLevelHigh: return F("WaterLevelHigh");
+            case State::ReservoirEmpty: return F("ReservoirEmpty");
+            case State::Sleeping: return F("Sleeping");
+            case State::Error: return F("Error");
             }
         }
 
         /**
          * @brief Human-readable, flash-resident name for an Event. See stateName().
          */
-        inline const __FlashStringHelper *eventName(Event event)
-        {
-            switch (event)
-            {
-                default:
-                case Event::HighLevelSensorIsTriggered:       return F("HighLevelSensorIsTriggered");
-                case Event::HighLevelSensorNotTriggered:      return F("HighLevelSensorNotTriggered");
-                case Event::LowLevelSensorIsTriggered:        return F("LowLevelSensorIsTriggered");
-                case Event::LowLevelSensorNotTriggered:       return F("LowLevelSensorNotTriggered");
-                case Event::ReservoirLevelSensorIsTriggered:  return F("ReservoirLevelSensorIsTriggered");
-                case Event::ReservoirLevelSensorNotTriggered: return F("ReservoirLevelSensorNotTriggered");
-                case Event::NormalLevelSensorIsTriggered:     return F("NormalLevelSensorIsTriggered");
-                case Event::NormalLevelSensorNotTriggered:    return F("NormalLevelSensorNotTriggered");
-                case Event::DispenseButtonIsPushed:           return F("DispenseButtonIsPushed");
-                case Event::SleepButtonIsPushed:              return F("SleepButtonIsPushed");
-                case Event::DispenserOnTimeElapsed:           return F("DispenserOnTimeElapsed");
-                case Event::SleepTimeElapsed:                 return F("SleepTimeElapsed");
-                case Event::MaxIdleTimeElapsed:               return F("MaxIdleTimeElapsed");
+        inline const __FlashStringHelper *eventName(Event event) {
+            switch (event) {
+            default:
+            case Event::HighLevelSensorIsTriggered: return F("HighLevelSensorIsTriggered");
+            case Event::HighLevelSensorNotTriggered: return F("HighLevelSensorNotTriggered");
+            case Event::LowLevelSensorIsTriggered: return F("LowLevelSensorIsTriggered");
+            case Event::LowLevelSensorNotTriggered: return F("LowLevelSensorNotTriggered");
+            case Event::ReservoirLevelSensorIsTriggered: return F("ReservoirLevelSensorIsTriggered");
+            case Event::ReservoirLevelSensorNotTriggered: return F("ReservoirLevelSensorNotTriggered");
+            case Event::NormalLevelSensorIsTriggered: return F("NormalLevelSensorIsTriggered");
+            case Event::NormalLevelSensorNotTriggered: return F("NormalLevelSensorNotTriggered");
+            case Event::DispenseButtonIsPushed: return F("DispenseButtonIsPushed");
+            case Event::SleepButtonIsPushed: return F("SleepButtonIsPushed");
+            case Event::DispenserOnTimeElapsed: return F("DispenserOnTimeElapsed");
+            case Event::SleepTimeElapsed: return F("SleepTimeElapsed");
+            case Event::MaxIdleTimeElapsed: return F("MaxIdleTimeElapsed");
             }
         }
 
         /**
          * @brief A single (fromState, event) -> toState rule.
          */
-        struct Transition
-        {
+        struct Transition {
             State fromState;
             Event event;
             State toState;
@@ -207,8 +198,7 @@ namespace xal
          * - Create an instance of AtoFsm with a reference to an AtoActions instance.
          * - Use the dispatch method to handle events and transition between states.
          */
-        class AtoFsm
-        {
+        class AtoFsm {
         public:
             /**
              * @brief Called by dispatch() on every event, whether or not it
@@ -226,8 +216,7 @@ namespace xal
 
         public:
             explicit AtoFsm(AtoActions &atoActions)
-                : atoActions(atoActions)
-            {
+                : atoActions(atoActions) {
             }
             ~AtoFsm() = default;
 
@@ -235,8 +224,7 @@ namespace xal
              * @brief Gets the current state of the FSM.
              * @return The current State.
              */
-            State getState() const
-            {
+            State getState() const {
                 return state;
             }
 
@@ -244,78 +232,68 @@ namespace xal
              * @brief Registers a callback invoked on every dispatch() call.
              * Pass nullptr to disable tracing. See TraceCallback for details.
              */
-            void setTraceCallback(TraceCallback callback)
-            {
+            void setTraceCallback(TraceCallback callback) {
                 traceCallback = callback;
             }
 
-            void dispatch(Event event)
-            {
+            void dispatch(Event event) {
                 State fromState = state;
                 bool matched = false;
 
-                for (const auto &transition : TRANSITION_TABLE)
-                {
-                    if (transition.fromState == state && transition.event == event)
-                    {
+                for (const auto &transition : TRANSITION_TABLE) {
+                    if (transition.fromState == state && transition.event == event) {
                         transit(transition.toState);
                         matched = true;
                         break;
                     }
                 }
 
-                if (traceCallback != nullptr)
-                {
+                if (traceCallback != nullptr) {
                     traceCallback(fromState, event, state, matched);
                 }
             }
 
         private:
-            void enter(State actOnState)
-            {
-                switch (actOnState)
-                {
-                    case State::Idle:
-                        atoActions.onEntryIdleState();
-                        break;
-                    case State::DispensingInAutoMode:
-                        atoActions.onEntryDispensingInAutoModeState();
-                        break;
-                    case State::DispensingInManualMode:
-                        atoActions.onEntryDispensingInManualModeState();
-                        break;
-                    case State::ReservoirEmpty:
-                        atoActions.onEntryReservoirEmptyState();
-                        break;
-                    case State::Sleeping:
-                        atoActions.onEntrySleepingState();
-                        break;
-                    case State::IdleForTooLong:
-                        atoActions.onEntryIdleForTooLongState();
-                        break;
-                    case State::WaterLevelLow:
-                        atoActions.onEntryWaterLowState();
-                        break;
-                    case State::WaterLevelHigh:
-                        atoActions.onEntryWaterHighState();
-                        break;
-                    case State::Error:
-                        atoActions.onEntryErrorState();
-                        break;
-                    default:
-                        break;
+            void enter(State actOnState) {
+                switch (actOnState) {
+                case State::Idle:
+                    atoActions.onEntryIdleState();
+                    break;
+                case State::DispensingInAutoMode:
+                    atoActions.onEntryDispensingInAutoModeState();
+                    break;
+                case State::DispensingInManualMode:
+                    atoActions.onEntryDispensingInManualModeState();
+                    break;
+                case State::ReservoirEmpty:
+                    atoActions.onEntryReservoirEmptyState();
+                    break;
+                case State::Sleeping:
+                    atoActions.onEntrySleepingState();
+                    break;
+                case State::IdleForTooLong:
+                    atoActions.onEntryIdleForTooLongState();
+                    break;
+                case State::WaterLevelLow:
+                    atoActions.onEntryWaterLowState();
+                    break;
+                case State::WaterLevelHigh:
+                    atoActions.onEntryWaterHighState();
+                    break;
+                case State::Error:
+                    atoActions.onEntryErrorState();
+                    break;
+                default:
+                    break;
                 }
             }
 
-            void exit()
-            {
+            void exit() {
                 atoActions.onExitState();
             }
 
-            void transit(State actOnState)
-            {
-                if (this->state != actOnState)
-                {
+            void transit(State actOnState) {
+                if (this->state != actOnState) {
                     exit();
                     this->state = actOnState;
                     enter(actOnState);

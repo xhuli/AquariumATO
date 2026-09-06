@@ -9,8 +9,7 @@
 #include <Arduino.h>
 #include <Runnable.h>
 
-namespace xal
-{
+namespace xal {
 
     /**
      * @class TimedSwitchable
@@ -19,8 +18,7 @@ namespace xal
      * @implements AbstractSwitchable, Runnable
      */
     class TimedSwitchable : public AbstractSwitchable,
-                            public Runnable
-    {
+                            public Runnable {
         typedef void (*Callback)();
 
     private:
@@ -40,8 +38,7 @@ namespace xal
          * @param durationMs The duration in milliseconds to check.
          * @return True if the duration has elapsed, false otherwise.
          */
-        bool hasElapsed(uint32_t nowMs, uint32_t durationMs) const
-        {
+        bool hasElapsed(uint32_t nowMs, uint32_t durationMs) const {
             return ((durationMs > 0) && (nowMs - lastSwitchedMs >= durationMs));
         }
 
@@ -49,8 +46,7 @@ namespace xal
          * @brief Gets the maximum duration for the current state.
          * @return The maximum duration in milliseconds.
          */
-        uint32_t currentStateMaxDurationMs()
-        {
+        uint32_t currentStateMaxDurationMs() {
             return this->isOn() ? maxOnTimeMs : maxOffTimeMs;
         }
 
@@ -59,8 +55,7 @@ namespace xal
          * @brief Constructs a TimedSwitchable object with the specified pin number and initial state.
          * @param switchable The switchable component which will be wrapped with timed functionality.
          */
-        explicit TimedSwitchable(AbstractSwitchable &switchable) : switchable(switchable)
-        {
+        explicit TimedSwitchable(AbstractSwitchable &switchable) : switchable(switchable) {
         }
 
         /**
@@ -72,8 +67,7 @@ namespace xal
          * @brief Sets the maximum duration that the component can stay on.
          * @param maxOnTimeMs The maximum duration in milliseconds.
          */
-        virtual void setMaxOnTimeMs(uint32_t maxOnTimeMs)
-        {
+        virtual void setMaxOnTimeMs(uint32_t maxOnTimeMs) {
             this->maxOnTimeMs = maxOnTimeMs;
         }
 
@@ -81,8 +75,7 @@ namespace xal
          * @brief Sets the maximum duration that the component can stay off.
          * @param maxOffTimeMs The maximum duration in milliseconds.
          */
-        virtual void setMaxOffTimeMs(uint32_t maxOffTimeMs)
-        {
+        virtual void setMaxOffTimeMs(uint32_t maxOffTimeMs) {
             this->maxOffTimeMs = maxOffTimeMs;
         }
 
@@ -90,8 +83,7 @@ namespace xal
          * @brief Sets the callback function to be called when the on duration is reached.
          * @param callback The callback function to be called when the on duration is reached.
          */
-        virtual void setOnTimeElapsedCallback(Callback callback)
-        {
+        virtual void setOnTimeElapsedCallback(Callback callback) {
             onTimeElapsedCallback = callback;
         }
 
@@ -99,13 +91,11 @@ namespace xal
          * @brief Sets the callback function to be called when the off duration is reached.
          * @param callback The callback function to be called when the off duration is reached.
          */
-        virtual void setOffTimeElapsedCallback(Callback callback)
-        {
+        virtual void setOffTimeElapsedCallback(Callback callback) {
             offTimeElapsedCallback = callback;
         }
 
-        void setOn() override
-        {
+        void setOn() override {
             setOn(millis());
         }
 
@@ -116,15 +106,13 @@ namespace xal
          * timestamps.
          * @param nowMs The current time in milliseconds.
          */
-        void setOn(uint32_t nowMs)
-        {
+        void setOn(uint32_t nowMs) {
             lastSwitchedMs = nowMs;
             AbstractSwitchable::setOn();
             switchable.setOn();
         }
 
-        void setOff() override
-        {
+        void setOff() override {
             setOff(millis());
         }
 
@@ -133,15 +121,13 @@ namespace xal
          * given value instead of reading millis() internally.
          * @param nowMs The current time in milliseconds.
          */
-        void setOff(uint32_t nowMs)
-        {
+        void setOff(uint32_t nowMs) {
             lastSwitchedMs = nowMs;
             AbstractSwitchable::setOff();
             switchable.setOff();
         }
 
-        void toggle() override
-        {
+        void toggle() override {
             toggle(millis());
         }
 
@@ -150,15 +136,13 @@ namespace xal
          * given value instead of reading millis() internally.
          * @param nowMs The current time in milliseconds.
          */
-        void toggle(uint32_t nowMs)
-        {
+        void toggle(uint32_t nowMs) {
             lastSwitchedMs = nowMs;
             AbstractSwitchable::toggle();
             switchable.toggle();
         }
 
-        void setup() override
-        {
+        void setup() override {
         }
 
         /**
@@ -168,23 +152,16 @@ namespace xal
          * directly with a fabricated timestamp in tests.
          * @param nowMs The current time in milliseconds (normally millis()).
          */
-        void process(uint32_t nowMs)
-        {
-            if (hasElapsed(nowMs, currentStateMaxDurationMs()))
-            {
-                if (isOn())
-                {
+        void process(uint32_t nowMs) {
+            if (hasElapsed(nowMs, currentStateMaxDurationMs())) {
+                if (isOn()) {
                     setOff(nowMs);
-                    if (onTimeElapsedCallback != nullptr)
-                    {
+                    if (onTimeElapsedCallback != nullptr) {
                         onTimeElapsedCallback();
                     }
-                }
-                else
-                {
+                } else {
                     setOn(nowMs);
-                    if (offTimeElapsedCallback != nullptr)
-                    {
+                    if (offTimeElapsedCallback != nullptr) {
                         offTimeElapsedCallback();
                     }
                 }
@@ -195,8 +172,7 @@ namespace xal
          * @brief Executes the component's main logic.
          * @details This function is called repeatedly in the main loop.
          */
-        void loop() override
-        {
+        void loop() override {
             process(millis());
         }
     };

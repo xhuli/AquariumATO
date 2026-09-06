@@ -2,8 +2,7 @@
 #define com_github_xhuli_arduino_lib_runnable_Runnable_H
 #pragma once
 
-namespace xal
-{
+namespace xal {
 
     /**
      * @brief Arduino the Object Oriented way
@@ -20,13 +19,11 @@ namespace xal
      *
      * https://paulmurraycbr.github.io/ArduinoTheOOWay.html#thespookyway
      */
-    class Runnable
-    {
+    class Runnable {
     private:
         Runnable *next;
 
-        static Runnable *&head()
-        {
+        static Runnable *&head() {
             static Runnable *instance = nullptr;
             return instance;
         }
@@ -41,11 +38,10 @@ namespace xal
         Runnable(Runnable &&) = delete;
         Runnable &operator=(Runnable &&) = delete;
 
-        Runnable()
-        {
+        Runnable() {
             /* LIFO: head will point to last instance, first instance will point to null */
-            next = head();      /* save pointer to previous instance */
-            head() = this;      /* move head to this instance */
+            next = head(); /* save pointer to previous instance */
+            head() = this; /* move head to this instance */
         }
 
         virtual ~Runnable() = default;
@@ -54,18 +50,14 @@ namespace xal
 
         virtual void loop() = 0;
 
-        static void setupAll()
-        {
-            for (Runnable *r = head(); r; r = r->next)
-            {
+        static void setupAll() {
+            for (Runnable *r = head(); r; r = r->next) {
                 r->setup();
             }
         }
 
-        static void loopAll()
-        {
-            for (Runnable *r = head(); r; r = r->next)
-            {
+        static void loopAll() {
+            for (Runnable *r = head(); r; r = r->next) {
                 r->loop();
             }
         }

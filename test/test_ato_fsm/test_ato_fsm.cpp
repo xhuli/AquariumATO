@@ -60,15 +60,13 @@ using xal::ato::AtoFsm;
 using xal::ato::Event;
 using xal::ato::State;
 
-namespace
-{
+namespace {
 
     /**
      * @brief Starts a fresh FSM (always begins in State::Idle), dispatches
      * testEvent, and returns the resulting state.
      */
-    State transitionFromIdle(Event testEvent)
-    {
+    State transitionFromIdle(Event testEvent) {
         AtoActions actions;
         AtoFsm fsm(actions);
         fsm.dispatch(testEvent);
@@ -80,8 +78,7 @@ namespace
      * under test, then dispatches testEvent and returns the resulting state.
      * Every state in this FSM is reachable in exactly one hop from Idle.
      */
-    State transitionFrom(Event arriveVia, Event testEvent)
-    {
+    State transitionFrom(Event arriveVia, Event testEvent) {
         AtoActions actions;
         AtoFsm fsm(actions);
         fsm.dispatch(arriveVia);
@@ -94,8 +91,7 @@ namespace
      * returns the resulting state — used to confirm each state is
      * reachable at all before testing transitions out of it.
      */
-    State reach(Event arriveVia)
-    {
+    State reach(Event arriveVia) {
         AtoActions actions;
         AtoFsm fsm(actions);
         fsm.dispatch(arriveVia);
@@ -109,474 +105,404 @@ namespace
 /* non-Idle state actually lands where the helpers above assume. */
 /* ============================================================ */
 
-void test_reach_dispensingInAutoMode()
-{
+void test_reach_dispensingInAutoMode() {
     TEST_ASSERT_EQUAL_INT((int)State::DispensingInAutoMode,
-        (int)reach(Event::NormalLevelSensorNotTriggered));
+                          (int)reach(Event::NormalLevelSensorNotTriggered));
 }
 
-void test_reach_dispensingInManualMode()
-{
+void test_reach_dispensingInManualMode() {
     TEST_ASSERT_EQUAL_INT((int)State::DispensingInManualMode,
-        (int)reach(Event::DispenseButtonIsPushed));
+                          (int)reach(Event::DispenseButtonIsPushed));
 }
 
-void test_reach_waterLevelLow()
-{
+void test_reach_waterLevelLow() {
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelLow,
-        (int)reach(Event::LowLevelSensorNotTriggered));
+                          (int)reach(Event::LowLevelSensorNotTriggered));
 }
 
-void test_reach_waterLevelHigh()
-{
+void test_reach_waterLevelHigh() {
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelHigh,
-        (int)reach(Event::HighLevelSensorIsTriggered));
+                          (int)reach(Event::HighLevelSensorIsTriggered));
 }
 
-void test_reach_reservoirEmpty()
-{
+void test_reach_reservoirEmpty() {
     TEST_ASSERT_EQUAL_INT((int)State::ReservoirEmpty,
-        (int)reach(Event::ReservoirLevelSensorNotTriggered));
+                          (int)reach(Event::ReservoirLevelSensorNotTriggered));
 }
 
-void test_reach_sleeping()
-{
+void test_reach_sleeping() {
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)reach(Event::SleepButtonIsPushed));
+                          (int)reach(Event::SleepButtonIsPushed));
 }
 
-void test_reach_idleForTooLong()
-{
+void test_reach_idleForTooLong() {
     TEST_ASSERT_EQUAL_INT((int)State::IdleForTooLong,
-        (int)reach(Event::MaxIdleTimeElapsed));
+                          (int)reach(Event::MaxIdleTimeElapsed));
 }
 
-void test_reach_error()
-{
+void test_reach_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)reach(Event::SleepTimeElapsed));
+                          (int)reach(Event::SleepTimeElapsed));
 }
 
 /* ============================================================ */
 /* State::Idle                                                   */
 /* ============================================================ */
 
-void test_idle_highLevelIsTriggered_to_waterLevelHigh()
-{
+void test_idle_highLevelIsTriggered_to_waterLevelHigh() {
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelHigh,
-        (int)transitionFromIdle(Event::HighLevelSensorIsTriggered));
+                          (int)transitionFromIdle(Event::HighLevelSensorIsTriggered));
 }
 
-void test_idle_lowLevelNotTriggered_to_waterLevelLow()
-{
+void test_idle_lowLevelNotTriggered_to_waterLevelLow() {
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelLow,
-        (int)transitionFromIdle(Event::LowLevelSensorNotTriggered));
+                          (int)transitionFromIdle(Event::LowLevelSensorNotTriggered));
 }
 
-void test_idle_sleepTimeElapsed_to_error()
-{
+void test_idle_sleepTimeElapsed_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFromIdle(Event::SleepTimeElapsed));
+                          (int)transitionFromIdle(Event::SleepTimeElapsed));
 }
 
-void test_idle_dispenserOnTimeElapsed_to_error()
-{
+void test_idle_dispenserOnTimeElapsed_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFromIdle(Event::DispenserOnTimeElapsed));
+                          (int)transitionFromIdle(Event::DispenserOnTimeElapsed));
 }
 
-void test_idle_normalLevelNotTriggered_to_dispensingInAutoMode()
-{
+void test_idle_normalLevelNotTriggered_to_dispensingInAutoMode() {
     TEST_ASSERT_EQUAL_INT((int)State::DispensingInAutoMode,
-        (int)transitionFromIdle(Event::NormalLevelSensorNotTriggered));
+                          (int)transitionFromIdle(Event::NormalLevelSensorNotTriggered));
 }
 
-void test_idle_reservoirLevelNotTriggered_to_reservoirEmpty()
-{
+void test_idle_reservoirLevelNotTriggered_to_reservoirEmpty() {
     TEST_ASSERT_EQUAL_INT((int)State::ReservoirEmpty,
-        (int)transitionFromIdle(Event::ReservoirLevelSensorNotTriggered));
+                          (int)transitionFromIdle(Event::ReservoirLevelSensorNotTriggered));
 }
 
-void test_idle_dispenseButtonPushed_to_dispensingInManualMode()
-{
+void test_idle_dispenseButtonPushed_to_dispensingInManualMode() {
     TEST_ASSERT_EQUAL_INT((int)State::DispensingInManualMode,
-        (int)transitionFromIdle(Event::DispenseButtonIsPushed));
+                          (int)transitionFromIdle(Event::DispenseButtonIsPushed));
 }
 
-void test_idle_maxIdleTimeElapsed_to_idleForTooLong()
-{
+void test_idle_maxIdleTimeElapsed_to_idleForTooLong() {
     TEST_ASSERT_EQUAL_INT((int)State::IdleForTooLong,
-        (int)transitionFromIdle(Event::MaxIdleTimeElapsed));
+                          (int)transitionFromIdle(Event::MaxIdleTimeElapsed));
 }
 
-void test_idle_sleepButtonPushed_to_sleeping()
-{
+void test_idle_sleepButtonPushed_to_sleeping() {
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)transitionFromIdle(Event::SleepButtonIsPushed));
+                          (int)transitionFromIdle(Event::SleepButtonIsPushed));
 }
 
-void test_idle_unhandledEvent_staysIdle()
-{
+void test_idle_unhandledEvent_staysIdle() {
     /* HighLevelSensorNotTriggered has no case in Idle's table. */
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFromIdle(Event::HighLevelSensorNotTriggered));
+                          (int)transitionFromIdle(Event::HighLevelSensorNotTriggered));
 }
 
 /* ============================================================ */
 /* State::DispensingInAutoMode                                   */
 /* ============================================================ */
 
-void test_dispensingInAutoMode_highLevelIsTriggered_to_waterLevelHigh()
-{
+void test_dispensingInAutoMode_highLevelIsTriggered_to_waterLevelHigh() {
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelHigh,
-        (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::HighLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::HighLevelSensorIsTriggered));
 }
 
-void test_dispensingInAutoMode_lowLevelNotTriggered_to_waterLevelLow()
-{
+void test_dispensingInAutoMode_lowLevelNotTriggered_to_waterLevelLow() {
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelLow,
-        (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::LowLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::LowLevelSensorNotTriggered));
 }
 
-void test_dispensingInAutoMode_sleepTimeElapsed_to_error()
-{
+void test_dispensingInAutoMode_sleepTimeElapsed_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::SleepTimeElapsed));
+                          (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::SleepTimeElapsed));
 }
 
-void test_dispensingInAutoMode_normalLevelIsTriggered_to_idle()
-{
+void test_dispensingInAutoMode_normalLevelIsTriggered_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::NormalLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::NormalLevelSensorIsTriggered));
 }
 
-void test_dispensingInAutoMode_dispenseButtonPushed_to_idle()
-{
+void test_dispensingInAutoMode_dispenseButtonPushed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::DispenseButtonIsPushed));
+                          (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::DispenseButtonIsPushed));
 }
 
-void test_dispensingInAutoMode_reservoirLevelNotTriggered_to_reservoirEmpty()
-{
+void test_dispensingInAutoMode_reservoirLevelNotTriggered_to_reservoirEmpty() {
     TEST_ASSERT_EQUAL_INT((int)State::ReservoirEmpty,
-        (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::ReservoirLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::ReservoirLevelSensorNotTriggered));
 }
 
-void test_dispensingInAutoMode_dispenserOnTimeElapsed_to_reservoirEmpty()
-{
+void test_dispensingInAutoMode_dispenserOnTimeElapsed_to_reservoirEmpty() {
     TEST_ASSERT_EQUAL_INT((int)State::ReservoirEmpty,
-        (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::DispenserOnTimeElapsed));
+                          (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::DispenserOnTimeElapsed));
 }
 
-void test_dispensingInAutoMode_sleepButtonPushed_to_sleeping()
-{
+void test_dispensingInAutoMode_sleepButtonPushed_to_sleeping() {
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::SleepButtonIsPushed));
+                          (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::SleepButtonIsPushed));
 }
 
-void test_dispensingInAutoMode_unhandledEvent_staysInState()
-{
+void test_dispensingInAutoMode_unhandledEvent_staysInState() {
     /* ReservoirLevelSensorIsTriggered has no case in DispensingInAutoMode's table. */
     TEST_ASSERT_EQUAL_INT((int)State::DispensingInAutoMode,
-        (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::ReservoirLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::NormalLevelSensorNotTriggered, Event::ReservoirLevelSensorIsTriggered));
 }
 
 /* ============================================================ */
 /* State::DispensingInManualMode                                 */
 /* ============================================================ */
 
-void test_dispensingInManualMode_highLevelIsTriggered_to_waterLevelHigh()
-{
+void test_dispensingInManualMode_highLevelIsTriggered_to_waterLevelHigh() {
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelHigh,
-        (int)transitionFrom(Event::DispenseButtonIsPushed, Event::HighLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::DispenseButtonIsPushed, Event::HighLevelSensorIsTriggered));
 }
 
-void test_dispensingInManualMode_sleepTimeElapsed_to_error()
-{
+void test_dispensingInManualMode_sleepTimeElapsed_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFrom(Event::DispenseButtonIsPushed, Event::SleepTimeElapsed));
+                          (int)transitionFrom(Event::DispenseButtonIsPushed, Event::SleepTimeElapsed));
 }
 
-void test_dispensingInManualMode_normalLevelIsTriggered_to_idle()
-{
+void test_dispensingInManualMode_normalLevelIsTriggered_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::DispenseButtonIsPushed, Event::NormalLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::DispenseButtonIsPushed, Event::NormalLevelSensorIsTriggered));
 }
 
-void test_dispensingInManualMode_dispenseButtonPushed_to_idle()
-{
+void test_dispensingInManualMode_dispenseButtonPushed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::DispenseButtonIsPushed, Event::DispenseButtonIsPushed));
+                          (int)transitionFrom(Event::DispenseButtonIsPushed, Event::DispenseButtonIsPushed));
 }
 
-void test_dispensingInManualMode_dispenserOnTimeElapsed_to_idle()
-{
+void test_dispensingInManualMode_dispenserOnTimeElapsed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::DispenseButtonIsPushed, Event::DispenserOnTimeElapsed));
+                          (int)transitionFrom(Event::DispenseButtonIsPushed, Event::DispenserOnTimeElapsed));
 }
 
-void test_dispensingInManualMode_reservoirLevelNotTriggered_to_reservoirEmpty()
-{
+void test_dispensingInManualMode_reservoirLevelNotTriggered_to_reservoirEmpty() {
     TEST_ASSERT_EQUAL_INT((int)State::ReservoirEmpty,
-        (int)transitionFrom(Event::DispenseButtonIsPushed, Event::ReservoirLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::DispenseButtonIsPushed, Event::ReservoirLevelSensorNotTriggered));
 }
 
-void test_dispensingInManualMode_sleepButtonPushed_to_sleeping()
-{
+void test_dispensingInManualMode_sleepButtonPushed_to_sleeping() {
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)transitionFrom(Event::DispenseButtonIsPushed, Event::SleepButtonIsPushed));
+                          (int)transitionFrom(Event::DispenseButtonIsPushed, Event::SleepButtonIsPushed));
 }
 
-void test_dispensingInManualMode_unhandledEvent_staysInState()
-{
+void test_dispensingInManualMode_unhandledEvent_staysInState() {
     /* LowLevelSensorIsTriggered has no case in DispensingInManualMode's table. */
     TEST_ASSERT_EQUAL_INT((int)State::DispensingInManualMode,
-        (int)transitionFrom(Event::DispenseButtonIsPushed, Event::LowLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::DispenseButtonIsPushed, Event::LowLevelSensorIsTriggered));
 }
 
 /* ============================================================ */
 /* State::WaterLevelLow                                          */
 /* ============================================================ */
 
-void test_waterLevelLow_lowLevelIsTriggered_to_idle()
-{
+void test_waterLevelLow_lowLevelIsTriggered_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::LowLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::LowLevelSensorIsTriggered));
 }
 
-void test_waterLevelLow_normalLevelIsTriggered_to_idle()
-{
+void test_waterLevelLow_normalLevelIsTriggered_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::NormalLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::NormalLevelSensorIsTriggered));
 }
 
-void test_waterLevelLow_dispenseButtonPushed_to_dispensingInManualMode()
-{
+void test_waterLevelLow_dispenseButtonPushed_to_dispensingInManualMode() {
     TEST_ASSERT_EQUAL_INT((int)State::DispensingInManualMode,
-        (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::DispenseButtonIsPushed));
+                          (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::DispenseButtonIsPushed));
 }
 
-void test_waterLevelLow_sleepButtonPushed_to_sleeping()
-{
+void test_waterLevelLow_sleepButtonPushed_to_sleeping() {
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::SleepButtonIsPushed));
+                          (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::SleepButtonIsPushed));
 }
 
-void test_waterLevelLow_unhandledEvent_staysInState()
-{
+void test_waterLevelLow_unhandledEvent_staysInState() {
     /* HighLevelSensorIsTriggered has no case in WaterLevelLow's table. */
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelLow,
-        (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::HighLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::LowLevelSensorNotTriggered, Event::HighLevelSensorIsTriggered));
 }
 
 /* ============================================================ */
 /* State::WaterLevelHigh                                         */
 /* ============================================================ */
 
-void test_waterLevelHigh_dispenseButtonPushed_to_idle()
-{
+void test_waterLevelHigh_dispenseButtonPushed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::DispenseButtonIsPushed));
+                          (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::DispenseButtonIsPushed));
 }
 
-void test_waterLevelHigh_highLevelNotTriggered_to_idle()
-{
+void test_waterLevelHigh_highLevelNotTriggered_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::HighLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::HighLevelSensorNotTriggered));
 }
 
-void test_waterLevelHigh_sleepButtonPushed_to_sleeping()
-{
+void test_waterLevelHigh_sleepButtonPushed_to_sleeping() {
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::SleepButtonIsPushed));
+                          (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::SleepButtonIsPushed));
 }
 
-void test_waterLevelHigh_normalLevelNotTriggered_to_error()
-{
+void test_waterLevelHigh_normalLevelNotTriggered_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::NormalLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::NormalLevelSensorNotTriggered));
 }
 
-void test_waterLevelHigh_lowLevelNotTriggered_to_error()
-{
+void test_waterLevelHigh_lowLevelNotTriggered_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::LowLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::LowLevelSensorNotTriggered));
 }
 
-void test_waterLevelHigh_unhandledEvent_staysInState()
-{
+void test_waterLevelHigh_unhandledEvent_staysInState() {
     /* LowLevelSensorIsTriggered has no case in WaterLevelHigh's table. */
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelHigh,
-        (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::LowLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::HighLevelSensorIsTriggered, Event::LowLevelSensorIsTriggered));
 }
 
 /* ============================================================ */
 /* State::ReservoirEmpty                                         */
 /* ============================================================ */
 
-void test_reservoirEmpty_highLevelIsTriggered_to_error()
-{
+void test_reservoirEmpty_highLevelIsTriggered_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::HighLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::HighLevelSensorIsTriggered));
 }
 
-void test_reservoirEmpty_lowLevelNotTriggered_to_error()
-{
+void test_reservoirEmpty_lowLevelNotTriggered_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::LowLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::LowLevelSensorNotTriggered));
 }
 
-void test_reservoirEmpty_sleepTimeElapsed_to_error()
-{
+void test_reservoirEmpty_sleepTimeElapsed_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::SleepTimeElapsed));
+                          (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::SleepTimeElapsed));
 }
 
-void test_reservoirEmpty_dispenserOnTimeElapsed_to_error()
-{
+void test_reservoirEmpty_dispenserOnTimeElapsed_to_error() {
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::DispenserOnTimeElapsed));
+                          (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::DispenserOnTimeElapsed));
 }
 
-void test_reservoirEmpty_normalLevelIsTriggered_to_idle()
-{
+void test_reservoirEmpty_normalLevelIsTriggered_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::NormalLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::NormalLevelSensorIsTriggered));
 }
 
-void test_reservoirEmpty_dispenseButtonPushed_to_idle()
-{
+void test_reservoirEmpty_dispenseButtonPushed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::DispenseButtonIsPushed));
+                          (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::DispenseButtonIsPushed));
 }
 
-void test_reservoirEmpty_reservoirLevelIsTriggered_to_idle()
-{
+void test_reservoirEmpty_reservoirLevelIsTriggered_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::ReservoirLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::ReservoirLevelSensorIsTriggered));
 }
 
-void test_reservoirEmpty_sleepButtonPushed_to_sleeping()
-{
+void test_reservoirEmpty_sleepButtonPushed_to_sleeping() {
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::SleepButtonIsPushed));
+                          (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::SleepButtonIsPushed));
 }
 
-void test_reservoirEmpty_unhandledEvent_staysInState()
-{
+void test_reservoirEmpty_unhandledEvent_staysInState() {
     /* LowLevelSensorIsTriggered has no case in ReservoirEmpty's table. */
     TEST_ASSERT_EQUAL_INT((int)State::ReservoirEmpty,
-        (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::LowLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::ReservoirLevelSensorNotTriggered, Event::LowLevelSensorIsTriggered));
 }
 
 /* ============================================================ */
 /* State::Sleeping                                                */
 /* ============================================================ */
 
-void test_sleeping_dispenseButtonPushed_to_idle()
-{
+void test_sleeping_dispenseButtonPushed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::SleepButtonIsPushed, Event::DispenseButtonIsPushed));
+                          (int)transitionFrom(Event::SleepButtonIsPushed, Event::DispenseButtonIsPushed));
 }
 
-void test_sleeping_sleepButtonPushed_to_idle()
-{
+void test_sleeping_sleepButtonPushed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::SleepButtonIsPushed, Event::SleepButtonIsPushed));
+                          (int)transitionFrom(Event::SleepButtonIsPushed, Event::SleepButtonIsPushed));
 }
 
-void test_sleeping_sleepTimeElapsed_to_idle()
-{
+void test_sleeping_sleepTimeElapsed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::SleepButtonIsPushed, Event::SleepTimeElapsed));
+                          (int)transitionFrom(Event::SleepButtonIsPushed, Event::SleepTimeElapsed));
 }
 
-void test_sleeping_unhandledEvent_staysInState()
-{
+void test_sleeping_unhandledEvent_staysInState() {
     /* HighLevelSensorIsTriggered has no case in Sleeping's table. */
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)transitionFrom(Event::SleepButtonIsPushed, Event::HighLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::SleepButtonIsPushed, Event::HighLevelSensorIsTriggered));
 }
 
 /* ============================================================ */
 /* State::IdleForTooLong                                         */
 /* ============================================================ */
 
-void test_idleForTooLong_normalLevelNotTriggered_to_dispensingInAutoMode()
-{
+void test_idleForTooLong_normalLevelNotTriggered_to_dispensingInAutoMode() {
     TEST_ASSERT_EQUAL_INT((int)State::DispensingInAutoMode,
-        (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::NormalLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::NormalLevelSensorNotTriggered));
 }
 
-void test_idleForTooLong_dispenseButtonPushed_to_idle()
-{
+void test_idleForTooLong_dispenseButtonPushed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::DispenseButtonIsPushed));
+                          (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::DispenseButtonIsPushed));
 }
 
-void test_idleForTooLong_lowLevelNotTriggered_to_waterLevelLow()
-{
+void test_idleForTooLong_lowLevelNotTriggered_to_waterLevelLow() {
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelLow,
-        (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::LowLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::LowLevelSensorNotTriggered));
 }
 
-void test_idleForTooLong_highLevelIsTriggered_to_waterLevelHigh()
-{
+void test_idleForTooLong_highLevelIsTriggered_to_waterLevelHigh() {
     TEST_ASSERT_EQUAL_INT((int)State::WaterLevelHigh,
-        (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::HighLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::HighLevelSensorIsTriggered));
 }
 
-void test_idleForTooLong_reservoirLevelNotTriggered_to_reservoirEmpty()
-{
+void test_idleForTooLong_reservoirLevelNotTriggered_to_reservoirEmpty() {
     TEST_ASSERT_EQUAL_INT((int)State::ReservoirEmpty,
-        (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::ReservoirLevelSensorNotTriggered));
+                          (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::ReservoirLevelSensorNotTriggered));
 }
 
-void test_idleForTooLong_sleepButtonPushed_to_sleeping()
-{
+void test_idleForTooLong_sleepButtonPushed_to_sleeping() {
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::SleepButtonIsPushed));
+                          (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::SleepButtonIsPushed));
 }
 
-void test_idleForTooLong_unhandledEvent_staysInState()
-{
+void test_idleForTooLong_unhandledEvent_staysInState() {
     /* NormalLevelSensorIsTriggered has no case in IdleForTooLong's table
      * (only the *NotTriggered variant is handled there). This is also the
      * state involved in the historical missing-`break` fallthrough bug —
      * this guard protects against that class of regression reappearing. */
     TEST_ASSERT_EQUAL_INT((int)State::IdleForTooLong,
-        (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::NormalLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::MaxIdleTimeElapsed, Event::NormalLevelSensorIsTriggered));
 }
 
 /* ============================================================ */
 /* State::Error                                                  */
 /* ============================================================ */
 
-void test_error_dispenseButtonPushed_to_idle()
-{
+void test_error_dispenseButtonPushed_to_idle() {
     TEST_ASSERT_EQUAL_INT((int)State::Idle,
-        (int)transitionFrom(Event::SleepTimeElapsed, Event::DispenseButtonIsPushed));
+                          (int)transitionFrom(Event::SleepTimeElapsed, Event::DispenseButtonIsPushed));
 }
 
-void test_error_sleepButtonPushed_to_sleeping()
-{
+void test_error_sleepButtonPushed_to_sleeping() {
     TEST_ASSERT_EQUAL_INT((int)State::Sleeping,
-        (int)transitionFrom(Event::SleepTimeElapsed, Event::SleepButtonIsPushed));
+                          (int)transitionFrom(Event::SleepTimeElapsed, Event::SleepButtonIsPushed));
 }
 
-void test_error_unhandledEvent_staysInState()
-{
+void test_error_unhandledEvent_staysInState() {
     /* HighLevelSensorIsTriggered has no case in Error's table. */
     TEST_ASSERT_EQUAL_INT((int)State::Error,
-        (int)transitionFrom(Event::SleepTimeElapsed, Event::HighLevelSensorIsTriggered));
+                          (int)transitionFrom(Event::SleepTimeElapsed, Event::HighLevelSensorIsTriggered));
 }
 
 /* ============================================================ */
 /* Unity runner                                                  */
 /* ============================================================ */
 
-void setup()
-{
+void setup() {
     delay(2000); /* allow board/serial to settle before Unity output starts */
 
     UNITY_BEGIN();
@@ -663,7 +589,6 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
+void loop() {
     /* Tests run once in setup(); nothing to do here. */
 }

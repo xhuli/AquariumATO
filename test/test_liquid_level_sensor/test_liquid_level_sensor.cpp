@@ -30,8 +30,7 @@
 
 using xal::LiquidLevelSensor;
 
-namespace
-{
+namespace {
     /* Matches main.cpp's actual normalLevelSensor wiring
        (WHEN_ON__PIN_HIGH, PERIODIC_PUSH_READING_PERIOD) so these tests
        exercise realistic values, not arbitrary numbers. */
@@ -41,18 +40,15 @@ namespace
     uint8_t triggeredCount = 0;
     uint8_t notTriggeredCount = 0;
 
-    void onTriggered()
-    {
+    void onTriggered() {
         triggeredCount++;
     }
 
-    void onNotTriggered()
-    {
+    void onNotTriggered() {
         notTriggeredCount++;
     }
 
-    void resetCounters()
-    {
+    void resetCounters() {
         triggeredCount = 0;
         notTriggeredCount = 0;
     }
@@ -61,8 +57,7 @@ namespace
      * @brief Wires callbacks on a sensor constructed directly in its final
      * storage location.
      */
-    void wireSensor(LiquidLevelSensor &sensor)
-    {
+    void wireSensor(LiquidLevelSensor &sensor) {
         sensor.setIsTriggeredCallback(onTriggered);
         sensor.setNotTriggeredCallback(onNotTriggered);
     }
@@ -71,10 +66,8 @@ namespace
      * @brief Calls process(level, atMs) `times` times in a row, simulating
      * that many consecutive loop() iterations reading the same raw level.
      */
-    void feed(LiquidLevelSensor &sensor, uint8_t level, uint8_t times, uint32_t atMs)
-    {
-        for (uint8_t i = 0; i < times; i++)
-        {
+    void feed(LiquidLevelSensor &sensor, uint8_t level, uint8_t times, uint32_t atMs) {
+        for (uint8_t i = 0; i < times; i++) {
             sensor.process(level, atMs);
         }
     }
@@ -84,8 +77,7 @@ namespace
 /* Ring-buffer debounce smoothing.                                */
 /* ============================================================ */
 
-void test_single_noise_spike_does_not_change_debounced_state()
-{
+void test_single_noise_spike_does_not_change_debounced_state() {
     resetCounters();
     LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
     wireSensor(sensor);
@@ -99,8 +91,7 @@ void test_single_noise_spike_does_not_change_debounced_state()
     TEST_ASSERT_EQUAL_UINT8(0, notTriggeredCount);
 }
 
-void test_minority_noise_burst_does_not_flip_debounced_state()
-{
+void test_minority_noise_burst_does_not_flip_debounced_state() {
     resetCounters();
     LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
     wireSensor(sensor);
@@ -114,8 +105,7 @@ void test_minority_noise_burst_does_not_flip_debounced_state()
     TEST_ASSERT_EQUAL_UINT8(0, notTriggeredCount);
 }
 
-void test_sustained_new_reading_fires_correct_callback()
-{
+void test_sustained_new_reading_fires_correct_callback() {
     resetCounters();
     LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
     wireSensor(sensor);
@@ -133,8 +123,7 @@ void test_sustained_new_reading_fires_correct_callback()
 /* Periodic re-push (pushReadingToCallbackMs) timing.             */
 /* ============================================================ */
 
-void test_state_unchanged_before_interval_does_not_refire()
-{
+void test_state_unchanged_before_interval_does_not_refire() {
     resetCounters();
     LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
     wireSensor(sensor);
@@ -149,8 +138,7 @@ void test_state_unchanged_before_interval_does_not_refire()
     TEST_ASSERT_EQUAL_UINT8(0, notTriggeredCount);
 }
 
-void test_periodic_repush_fires_after_interval_elapses()
-{
+void test_periodic_repush_fires_after_interval_elapses() {
     resetCounters();
     LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
     wireSensor(sensor);
@@ -166,8 +154,7 @@ void test_periodic_repush_fires_after_interval_elapses()
     TEST_ASSERT_EQUAL_UINT8(0, notTriggeredCount);
 }
 
-void test_periodic_repush_disabled_when_interval_is_zero()
-{
+void test_periodic_repush_disabled_when_interval_is_zero() {
     resetCounters();
     LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, /* pushIntervalMs */ 0, LOW);
     wireSensor(sensor);
@@ -187,8 +174,7 @@ void test_periodic_repush_disabled_when_interval_is_zero()
 /* isTriggered()/isNotTriggered() pure helpers.                   */
 /* ============================================================ */
 
-void test_isTriggered_and_isNotTriggered_helpers()
-{
+void test_isTriggered_and_isNotTriggered_helpers() {
     LiquidLevelSensor sensor(/* pin */ 2, PIN_STATE_WHEN_PRESENT, PUSH_INTERVAL_MS, LOW);
     wireSensor(sensor);
 
@@ -202,8 +188,7 @@ void test_isTriggered_and_isNotTriggered_helpers()
 /* Unity runner                                                   */
 /* ============================================================ */
 
-void setup()
-{
+void setup() {
     delay(2000);
 
     UNITY_BEGIN();
@@ -219,6 +204,5 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
+void loop() {
 }

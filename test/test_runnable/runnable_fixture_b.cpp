@@ -2,40 +2,33 @@
 
 #include "runnable_fixture.h"
 
-namespace
-{
+namespace {
     int setupCount = 0;
     int loopCount = 0;
 
-    class FixtureRunnableB : public xal::Runnable
-    {
+    class FixtureRunnableB : public xal::Runnable {
     public:
-        void setup() override
-        {
+        void setup() override {
             setupCount++;
         }
 
-        void loop() override
-        {
+        void loop() override {
             loopCount++;
         }
     };
 
     FixtureRunnableB fixtureRunnableB;
-}
+} // namespace
 
-int runnableFixtureBSetupCount()
-{
+int runnableFixtureBSetupCount() {
     return setupCount;
 }
 
-int runnableFixtureBLoopCount()
-{
+int runnableFixtureBLoopCount() {
     return loopCount;
 }
 
-void resetRunnableFixtureBCounts()
-{
+void resetRunnableFixtureBCounts() {
     setupCount = 0;
     loopCount = 0;
 }

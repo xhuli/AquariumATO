@@ -9,8 +9,7 @@
 #include <Arduino.h>
 #include <Runnable.h>
 
-namespace xal
-{
+namespace xal {
 
     /**
      * @class CyclicSwitchable
@@ -26,8 +25,7 @@ namespace xal
      * @implements AbstractCyclicSwitchable, AbstractSwitchable, Runnable
      */
     class CyclicSwitchable : public AbstractCyclicSwitchable,
-                             public Runnable
-    {
+                             public Runnable {
     private:
         AbstractSwitchable &switchable;
 
@@ -48,8 +46,7 @@ namespace xal
          * @param durationMs The duration in milliseconds to check.
          * @return True if the duration has elapsed, false otherwise.
          */
-        bool hasElapsed(uint32_t nowMs, uint32_t durationMs)
-        {
+        bool hasElapsed(uint32_t nowMs, uint32_t durationMs) {
             return (nowMs - lastSwitchedMs >= durationMs);
         }
 
@@ -58,8 +55,7 @@ namespace xal
          * @brief Constructs a CyclicSwitchable object with the specified switchable object.
          * @param switchable The switchable component which will be wrapped with cyclic functionality.
          */
-        explicit CyclicSwitchable(AbstractSwitchable &switchable) : switchable(switchable)
-        {
+        explicit CyclicSwitchable(AbstractSwitchable &switchable) : switchable(switchable) {
         }
 
         /**
@@ -72,8 +68,7 @@ namespace xal
          * @param cycleArraySize The size of the cycle array.
          * @param cycleArray The cycle array.
          */
-        void setCycleArray(const uint8_t cycleArraySize, const uint32_t *cycleArray) override
-        {
+        void setCycleArray(const uint8_t cycleArraySize, const uint32_t *cycleArray) override {
             setCycleArray(cycleArraySize, cycleArray, millis());
         }
 
@@ -82,19 +77,15 @@ namespace xal
          * as the given value instead of reading millis() internally.
          * @param nowMs The current time in milliseconds.
          */
-        void setCycleArray(const uint8_t cycleArraySize, const uint32_t *cycleArray, uint32_t nowMs)
-        {
+        void setCycleArray(const uint8_t cycleArraySize, const uint32_t *cycleArray, uint32_t nowMs) {
             this->cycleArraySize = cycleArraySize;
             this->cycleArray = cycleArray;
 
-            if (isOn())
-            {
+            if (isOn()) {
                 currentIntervalIndex = 0;
                 lastSwitchedMs = nowMs;
                 switchable.setOn();
-            }
-            else
-            {
+            } else {
                 switchable.setOff();
             }
         }
@@ -102,8 +93,7 @@ namespace xal
         /**
          * @brief Switches the component on.
          */
-        void setOn() override
-        {
+        void setOn() override {
             setOn(millis());
         }
 
@@ -114,10 +104,8 @@ namespace xal
          * fabricated timestamps in tests.
          * @param nowMs The current time in milliseconds.
          */
-        void setOn(uint32_t nowMs)
-        {
-            if (isOff())
-            {
+        void setOn(uint32_t nowMs) {
+            if (isOff()) {
                 AbstractSwitchable::setOn();
                 currentIntervalIndex = 0;
                 lastSwitchedMs = nowMs;
@@ -128,10 +116,8 @@ namespace xal
         /**
          * @brief Switches the component off.
          */
-        void setOff() override
-        {
-            if (isOn())
-            {
+        void setOff() override {
+            if (isOn()) {
                 AbstractSwitchable::setOff();
                 switchable.setOff();
             }
@@ -140,14 +126,12 @@ namespace xal
         /**
          * @brief Toggles the component.
          */
-        void toggle() override
-        {
+        void toggle() override {
             AbstractSwitchable::toggle();
             switchable.toggle();
         }
 
-        void setup() override
-        {
+        void setup() override {
         }
 
         /**
@@ -157,12 +141,9 @@ namespace xal
          * can be driven directly with a fabricated timestamp in tests.
          * @param nowMs The current time in milliseconds (normally millis()).
          */
-        void process(uint32_t nowMs)
-        {
-            if (isOn() && cycleArray != nullptr && cycleArraySize > 0)
-            {
-                if (hasElapsed(nowMs, cycleArray[currentIntervalIndex]))
-                {
+        void process(uint32_t nowMs) {
+            if (isOn() && cycleArray != nullptr && cycleArraySize > 0) {
+                if (hasElapsed(nowMs, cycleArray[currentIntervalIndex])) {
                     currentIntervalIndex = (currentIntervalIndex + 1) % cycleArraySize;
                     switchable.setState(currentIntervalIndex % 2 == 0 ? SwitchState::On : SwitchState::Off);
                     lastSwitchedMs = nowMs;
@@ -174,8 +155,7 @@ namespace xal
          * @brief Called in the main Arduino loop function.
          * @details This function switches the component on and off in a cyclic manner.
          */
-        void loop() override
-        {
+        void loop() override {
             process(millis());
         }
     };

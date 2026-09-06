@@ -27,8 +27,7 @@ using xal::AbstractSwitchable;
 using xal::CyclicSwitchable;
 using xal::SwitchState;
 
-namespace
-{
+namespace {
     /**
      * @brief A minimal AbstractSwitchable that counts calls, tracking
      * setOn()/setOff() and setState() separately, since
@@ -44,27 +43,23 @@ namespace
      * calls setOn()/setOff()/setCycleArray(), to isolate it from these
      * incidental calls.
      */
-    class FakeSwitchable : public AbstractSwitchable
-    {
+    class FakeSwitchable : public AbstractSwitchable {
     public:
         uint8_t onCount = 0;
         uint8_t offCount = 0;
         uint8_t setStateCount = 0;
 
-        void setOn() override
-        {
+        void setOn() override {
             AbstractSwitchable::setOn();
             onCount++;
         }
 
-        void setOff() override
-        {
+        void setOff() override {
             AbstractSwitchable::setOff();
             offCount++;
         }
 
-        void setState(SwitchState state) override
-        {
+        void setState(SwitchState state) override {
             AbstractSwitchable::setState(state);
             setStateCount++;
         }
@@ -75,8 +70,7 @@ namespace
     constexpr uint32_t testPattern[4] = {100, 200, 300, 400};
 } // namespace
 
-void test_setOn_starts_pattern_and_switches_fake_on()
-{
+void test_setOn_starts_pattern_and_switches_fake_on() {
     FakeSwitchable fake;
     CyclicSwitchable cyclic(fake);
 
@@ -90,8 +84,7 @@ void test_setOn_starts_pattern_and_switches_fake_on()
     TEST_ASSERT_EQUAL_UINT8(1, fake.offCount);
 }
 
-void test_advances_through_pattern_at_each_interval()
-{
+void test_advances_through_pattern_at_each_interval() {
     FakeSwitchable fake;
     CyclicSwitchable cyclic(fake);
     cyclic.setCycleArray(4, testPattern, 0);
@@ -117,8 +110,7 @@ void test_advances_through_pattern_at_each_interval()
     TEST_ASSERT_EQUAL_UINT8(2, fake.setStateCount);
 }
 
-void test_wraps_around_after_last_interval()
-{
+void test_wraps_around_after_last_interval() {
     FakeSwitchable fake;
     CyclicSwitchable cyclic(fake);
     cyclic.setCycleArray(4, testPattern, 0);
@@ -135,12 +127,11 @@ void test_wraps_around_after_last_interval()
     TEST_ASSERT_EQUAL_INT(static_cast<int>(SwitchState::On), static_cast<int>(fake.getState()));
 }
 
-void test_does_nothing_while_off()
-{
+void test_does_nothing_while_off() {
     FakeSwitchable fake;
     CyclicSwitchable cyclic(fake);
     cyclic.setCycleArray(4, testPattern, 0); /* cyclic never turned on */
-    fake.setStateCount = 0; /* isolate from setCycleArray()'s own incidental setState() call */
+    fake.setStateCount = 0;                  /* isolate from setCycleArray()'s own incidental setState() call */
 
     cyclic.process(100000);
 
@@ -148,8 +139,7 @@ void test_does_nothing_while_off()
     TEST_ASSERT_EQUAL_UINT8(0, fake.setStateCount);
 }
 
-void setup()
-{
+void setup() {
     delay(2000);
 
     UNITY_BEGIN();
@@ -162,6 +152,5 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
+void loop() {
 }

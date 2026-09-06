@@ -27,27 +27,23 @@
 using xal::AbstractSwitchable;
 using xal::TimedSwitchable;
 
-namespace
-{
+namespace {
     /**
      * @brief A minimal AbstractSwitchable that just counts calls, so tests
      * can confirm TimedSwitchable actually delegates to its wrapped
      * component -- not just that its own internal state changed.
      */
-    class FakeSwitchable : public AbstractSwitchable
-    {
+    class FakeSwitchable : public AbstractSwitchable {
     public:
         uint8_t onCount = 0;
         uint8_t offCount = 0;
 
-        void setOn() override
-        {
+        void setOn() override {
             AbstractSwitchable::setOn();
             onCount++;
         }
 
-        void setOff() override
-        {
+        void setOff() override {
             AbstractSwitchable::setOff();
             offCount++;
         }
@@ -56,25 +52,21 @@ namespace
     uint8_t onElapsedCount = 0;
     uint8_t offElapsedCount = 0;
 
-    void onOnElapsed()
-    {
+    void onOnElapsed() {
         onElapsedCount++;
     }
 
-    void onOffElapsed()
-    {
+    void onOffElapsed() {
         offElapsedCount++;
     }
 
-    void resetCounters()
-    {
+    void resetCounters() {
         onElapsedCount = 0;
         offElapsedCount = 0;
     }
 } // namespace
 
-void test_fires_onTimeElapsed_and_turns_off_after_maxOnTime()
-{
+void test_fires_onTimeElapsed_and_turns_off_after_maxOnTime() {
     resetCounters();
     FakeSwitchable fake;
     TimedSwitchable ts(fake);
@@ -95,8 +87,7 @@ void test_fires_onTimeElapsed_and_turns_off_after_maxOnTime()
     TEST_ASSERT_EQUAL_UINT8(1, fake.offCount); /* confirms real delegation happened */
 }
 
-void test_fires_offTimeElapsed_and_turns_on_after_maxOffTime()
-{
+void test_fires_offTimeElapsed_and_turns_on_after_maxOffTime() {
     resetCounters();
     FakeSwitchable fake;
     TimedSwitchable ts(fake);
@@ -117,8 +108,7 @@ void test_fires_offTimeElapsed_and_turns_on_after_maxOffTime()
     TEST_ASSERT_EQUAL_UINT8(1, fake.onCount);
 }
 
-void test_zero_maxOnTime_never_autoElapses()
-{
+void test_zero_maxOnTime_never_autoElapses() {
     resetCounters();
     FakeSwitchable fake;
     TimedSwitchable ts(fake);
@@ -132,8 +122,7 @@ void test_zero_maxOnTime_never_autoElapses()
     TEST_ASSERT_EQUAL_UINT8(0, onElapsedCount);
 }
 
-void setup()
-{
+void setup() {
     delay(2000);
 
     UNITY_BEGIN();
@@ -145,6 +134,5 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
+void loop() {
 }

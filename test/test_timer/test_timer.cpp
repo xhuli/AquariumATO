@@ -19,30 +19,25 @@
 
 using xal::Timer;
 
-namespace
-{
+namespace {
     uint8_t fireCount = 0;
 
-    void onFire()
-    {
+    void onFire() {
         fireCount++;
     }
 
-    void resetCounters()
-    {
+    void resetCounters() {
         fireCount = 0;
     }
 
-    void configureTimer(Timer &timer, uint32_t durationMs, bool autoRestart)
-    {
+    void configureTimer(Timer &timer, uint32_t durationMs, bool autoRestart) {
         timer.setDurationMs(durationMs);
         timer.setAutoRestart(autoRestart);
         timer.setCallback(onFire);
     }
 } // namespace
 
-void test_timer_does_nothing_while_off()
-{
+void test_timer_does_nothing_while_off() {
     resetCounters();
     Timer timer;
     configureTimer(timer, 1000, false);
@@ -54,8 +49,7 @@ void test_timer_does_nothing_while_off()
     TEST_ASSERT_TRUE(timer.isOff());
 }
 
-void test_timer_fires_and_turns_off_when_elapsed_without_autoRestart()
-{
+void test_timer_fires_and_turns_off_when_elapsed_without_autoRestart() {
     resetCounters();
     Timer timer;
     configureTimer(timer, 1000, false);
@@ -71,8 +65,7 @@ void test_timer_fires_and_turns_off_when_elapsed_without_autoRestart()
     TEST_ASSERT_TRUE(timer.isOff());
 }
 
-void test_timer_autoRestarts_and_fires_again_each_interval()
-{
+void test_timer_autoRestarts_and_fires_again_each_interval() {
     resetCounters();
     Timer timer;
     configureTimer(timer, 1000, true);
@@ -91,8 +84,7 @@ void test_timer_autoRestarts_and_fires_again_each_interval()
     TEST_ASSERT_TRUE(timer.isOn());
 }
 
-void test_timer_manual_setOff_cancels_pending_fire()
-{
+void test_timer_manual_setOff_cancels_pending_fire() {
     resetCounters();
     Timer timer;
     configureTimer(timer, 500, false);
@@ -106,8 +98,7 @@ void test_timer_manual_setOff_cancels_pending_fire()
     TEST_ASSERT_TRUE(timer.isOff());
 }
 
-void setup()
-{
+void setup() {
     delay(2000);
 
     UNITY_BEGIN();
@@ -120,6 +111,5 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
+void loop() {
 }

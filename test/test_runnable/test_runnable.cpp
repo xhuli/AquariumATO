@@ -5,8 +5,7 @@
 
 #include "runnable_fixture.h"
 
-namespace
-{
+namespace {
     int setupSequence = 0;
     int loopSequence = 0;
     int firstSetupOrder = 0;
@@ -14,35 +13,30 @@ namespace
     int firstLoopOrder = 0;
     int secondLoopOrder = 0;
 
-    class OrderedRunnable : public xal::Runnable
-    {
+    class OrderedRunnable : public xal::Runnable {
     private:
         int &setupOrder;
         int &loopOrder;
 
     public:
         OrderedRunnable(int &setupOrder, int &loopOrder)
-            : setupOrder(setupOrder), loopOrder(loopOrder)
-        {
+            : setupOrder(setupOrder), loopOrder(loopOrder) {
         }
 
-        void setup() override
-        {
+        void setup() override {
             setupOrder = ++setupSequence;
         }
 
-        void loop() override
-        {
+        void loop() override {
             loopOrder = ++loopSequence;
         }
     };
 
     OrderedRunnable firstRegistered(firstSetupOrder, firstLoopOrder);
     OrderedRunnable secondRegistered(secondSetupOrder, secondLoopOrder);
-}
+} // namespace
 
-void test_setupAll_reaches_registered_instances_and_preserves_lifo_order()
-{
+void test_setupAll_reaches_registered_instances_and_preserves_lifo_order() {
     resetRunnableFixtureACounts();
     resetRunnableFixtureBCounts();
     setupSequence = 0;
@@ -58,8 +52,7 @@ void test_setupAll_reaches_registered_instances_and_preserves_lifo_order()
     TEST_ASSERT_TRUE(secondSetupOrder < firstSetupOrder);
 }
 
-void test_loopAll_reaches_registered_instances_and_preserves_lifo_order()
-{
+void test_loopAll_reaches_registered_instances_and_preserves_lifo_order() {
     loopSequence = 0;
     firstLoopOrder = 0;
     secondLoopOrder = 0;
@@ -73,8 +66,7 @@ void test_loopAll_reaches_registered_instances_and_preserves_lifo_order()
     TEST_ASSERT_TRUE(secondLoopOrder < firstLoopOrder);
 }
 
-void setup()
-{
+void setup() {
     delay(2000);
 
     UNITY_BEGIN();
@@ -83,6 +75,5 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
+void loop() {
 }

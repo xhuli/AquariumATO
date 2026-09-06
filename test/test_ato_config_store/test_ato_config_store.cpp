@@ -53,23 +53,21 @@
 #include <ato/AtoConfig.h>
 #include <ato/AtoConfigConsole.h>
 
-using xal::ato::AtoConfig;
-using xal::ato::AtoConfigStore;
-using xal::ato::AtoConfigConsole;
 using xal::ato::applyValidatedAtoConfig;
+using xal::ato::AtoConfig;
+using xal::ato::AtoConfigConsole;
+using xal::ato::AtoConfigStore;
+using xal::ato::isValidAtoConfig;
 using xal::ato::PUMP_MAX_ON_MS_MAX;
 using xal::ato::PUMP_MAX_ON_MS_MIN;
-using xal::ato::isValidAtoConfig;
 
-namespace
-{
+namespace {
     /**
      * @brief Builds an AtoConfig with the given real field values. magic/
      * version/crc8 are left zeroed -- AtoConfigStore::save()/loadOrDefault()
      * always stamp/validate those, callers never need to set them.
      */
-    AtoConfig makeConfig(uint32_t sleepMs, uint32_t idleMs, uint32_t pumpMs)
-    {
+    AtoConfig makeConfig(uint32_t sleepMs, uint32_t idleMs, uint32_t pumpMs) {
         AtoConfig config{};
         config.sleepMaxDurationMs = sleepMs;
         config.idleMaxDurationMs = idleMs;
@@ -83,8 +81,7 @@ namespace
      * fallback/self-heal actually persisted to disk, not just returned an
      * in-memory value.
      */
-    AtoConfig readRawConfigFromEeprom()
-    {
+    AtoConfig readRawConfigFromEeprom() {
         AtoConfig raw;
         EEPROM.get(xal::ato::CONFIG_EEPROM_ADDRESS, raw);
         return raw;
@@ -96,8 +93,7 @@ namespace
      * (regardless of the original value), without needing to know or
      * assume EEPROM's prior contents.
      */
-    void corruptByte(size_t fieldOffset)
-    {
+    void corruptByte(size_t fieldOffset) {
         int address = xal::ato::CONFIG_EEPROM_ADDRESS + static_cast<int>(fieldOffset);
         uint8_t original = EEPROM.read(address);
         EEPROM.write(address, original ^ 0xFF);
@@ -108,28 +104,22 @@ namespace
      * every byte in the config's address range set to 0xFF (the typical
      * erased-cell state), which fails the magic check immediately.
      */
-    void blankEeprom()
-    {
-        for (size_t i = 0; i < sizeof(AtoConfig); i++)
-        {
+    void blankEeprom() {
+        for (size_t i = 0; i < sizeof(AtoConfig); i++) {
             EEPROM.write(xal::ato::CONFIG_EEPROM_ADDRESS + static_cast<int>(i), 0xFF);
         }
     }
 
-    uint8_t computeTestCrc8(const AtoConfig &config)
-    {
+    uint8_t computeTestCrc8(const AtoConfig &config) {
         const uint8_t *data = reinterpret_cast<const uint8_t *>(&config);
         const size_t len = sizeof(AtoConfig) - sizeof(config.crc8);
         uint8_t crc = 0x00;
-        for (size_t i = 0; i < len; i++)
-        {
+        for (size_t i = 0; i < len; i++) {
             uint8_t inByte = data[i];
-            for (uint8_t bit = 0; bit < 8; bit++)
-            {
+            for (uint8_t bit = 0; bit < 8; bit++) {
                 uint8_t mix = (crc ^ inByte) & 0x01;
                 crc >>= 1;
-                if (mix)
-                {
+                if (mix) {
                     crc ^= 0x8C;
                 }
                 inByte >>= 1;
@@ -138,42 +128,35 @@ namespace
         return crc;
     }
 
-    void writeStructurallyValidConfigDirectly(AtoConfig config)
-    {
+    void writeStructurallyValidConfigDirectly(AtoConfig config) {
         config.magic = xal::ato::CONFIG_MAGIC;
         config.version = xal::ato::CONFIG_VERSION;
         config.crc8 = computeTestCrc8(config);
         EEPROM.put(xal::ato::CONFIG_EEPROM_ADDRESS, config);
     }
 
-
     uint8_t consoleApplyCalls = 0;
 
-    bool acceptValidConfig(const AtoConfig &config)
-    {
+    bool acceptValidConfig(const AtoConfig &config) {
         consoleApplyCalls++;
         return isValidAtoConfig(config);
     }
 
-    struct FakeTimer
-    {
+    struct FakeTimer {
         uint8_t calls = 0;
         uint32_t value = 0;
 
-        void setDurationMs(uint32_t durationMs)
-        {
+        void setDurationMs(uint32_t durationMs) {
             calls++;
             value = durationMs;
         }
     };
 
-    struct FakePump
-    {
+    struct FakePump {
         uint8_t calls = 0;
         uint32_t value = 12345;
 
-        void setMaxOnTimeMs(uint32_t durationMs)
-        {
+        void setMaxOnTimeMs(uint32_t durationMs) {
             calls++;
             value = durationMs;
         }
@@ -185,8 +168,7 @@ namespace
 /* the given defaults, never run with garbage/corrupt values.     */
 /* ============================================================ */
 
-void test_loadOrDefault_self_heals_from_blank_eeprom()
-{
+void test_loadOrDefault_self_heals_from_blank_eeprom() {
     blankEeprom();
 
     AtoConfig defaults = makeConfig(999001, 999002, 90003);
@@ -206,8 +188,7 @@ void test_loadOrDefault_self_heals_from_blank_eeprom()
     TEST_ASSERT_EQUAL_UINT32(90003, onDisk.pumpMaxOnDurationMs);
 }
 
-void test_loadOrDefault_falls_back_when_magic_is_wrong()
-{
+void test_loadOrDefault_falls_back_when_magic_is_wrong() {
     AtoConfig saved = makeConfig(111111, 222222, 120000);
     AtoConfigStore::save(saved);
 
@@ -224,8 +205,7 @@ void test_loadOrDefault_falls_back_when_magic_is_wrong()
     TEST_ASSERT_EQUAL_UINT32(999011, onDisk.sleepMaxDurationMs);
 }
 
-void test_loadOrDefault_falls_back_when_version_is_wrong()
-{
+void test_loadOrDefault_falls_back_when_version_is_wrong() {
     AtoConfig saved = makeConfig(111111, 222222, 120000);
     AtoConfigStore::save(saved);
 
@@ -239,8 +219,7 @@ void test_loadOrDefault_falls_back_when_version_is_wrong()
     TEST_ASSERT_EQUAL_UINT32(90023, result.pumpMaxOnDurationMs);
 }
 
-void test_loadOrDefault_falls_back_when_payload_data_is_corrupted()
-{
+void test_loadOrDefault_falls_back_when_payload_data_is_corrupted() {
     AtoConfig saved = makeConfig(111111, 222222, 120000);
     AtoConfigStore::save(saved);
 
@@ -262,8 +241,7 @@ void test_loadOrDefault_falls_back_when_payload_data_is_corrupted()
 /* silently replaced by defaults.                                  */
 /* ============================================================ */
 
-void test_loadOrDefault_returns_saved_config_when_valid()
-{
+void test_loadOrDefault_returns_saved_config_when_valid() {
     AtoConfig saved = makeConfig(444444, 555555, 100000);
     AtoConfigStore::save(saved);
 
@@ -281,8 +259,7 @@ void test_loadOrDefault_returns_saved_config_when_valid()
 /* Semantic pump safety validation                                */
 /* ============================================================ */
 
-void test_pump_max_on_safety_bounds()
-{
+void test_pump_max_on_safety_bounds() {
     TEST_ASSERT_FALSE(isValidAtoConfig(makeConfig(1, 1, 0)));
     TEST_ASSERT_FALSE(isValidAtoConfig(makeConfig(1, 1, PUMP_MAX_ON_MS_MIN - 1)));
     TEST_ASSERT_TRUE(isValidAtoConfig(makeConfig(1, 1, PUMP_MAX_ON_MS_MIN)));
@@ -291,8 +268,7 @@ void test_pump_max_on_safety_bounds()
     TEST_ASSERT_FALSE(isValidAtoConfig(makeConfig(1, 1, PUMP_MAX_ON_MS_MAX + 1)));
 }
 
-void test_save_rejects_invalid_pump_timeout()
-{
+void test_save_rejects_invalid_pump_timeout() {
     AtoConfig valid = makeConfig(101, 102, 90000);
     TEST_ASSERT_TRUE(AtoConfigStore::save(valid));
     AtoConfig before = readRawConfigFromEeprom();
@@ -304,8 +280,7 @@ void test_save_rejects_invalid_pump_timeout()
     TEST_ASSERT_EQUAL_MEMORY(&before, &after, sizeof(AtoConfig));
 }
 
-void test_loadOrDefault_falls_back_when_crc_valid_but_pump_timeout_is_unsafe()
-{
+void test_loadOrDefault_falls_back_when_crc_valid_but_pump_timeout_is_unsafe() {
     AtoConfig unsafe = makeConfig(301, 302, 0);
     writeStructurallyValidConfigDirectly(unsafe);
 
@@ -321,8 +296,7 @@ void test_loadOrDefault_falls_back_when_crc_valid_but_pump_timeout_is_unsafe()
     TEST_ASSERT_TRUE(isValidAtoConfig(onDisk));
 }
 
-void test_console_invalid_pump_set_does_not_modify_active_config()
-{
+void test_console_invalid_pump_set_does_not_modify_active_config() {
     AtoConfig active = makeConfig(501, 502, 90000);
     const AtoConfig defaults = active;
     bool traceEnabled = false;
@@ -335,8 +309,7 @@ void test_console_invalid_pump_set_does_not_modify_active_config()
     TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
 }
 
-void test_console_valid_pump_set_is_accepted()
-{
+void test_console_valid_pump_set_is_accepted() {
     AtoConfig active = makeConfig(511, 512, 90000);
     const AtoConfig defaults = active;
     bool traceEnabled = false;
@@ -349,8 +322,7 @@ void test_console_valid_pump_set_is_accepted()
     TEST_ASSERT_EQUAL_UINT8(1, consoleApplyCalls);
 }
 
-void test_invalid_config_cannot_reach_pump_timeout_setter()
-{
+void test_invalid_config_cannot_reach_pump_timeout_setter() {
     AtoConfig invalid = makeConfig(601, 602, 0);
     FakeTimer sleepTimer;
     FakeTimer idleTimer;
@@ -363,8 +335,7 @@ void test_invalid_config_cannot_reach_pump_timeout_setter()
     TEST_ASSERT_NOT_EQUAL(0, pump.value);
 }
 
-void test_valid_config_reaches_all_runtime_setters()
-{
+void test_valid_config_reaches_all_runtime_setters() {
     AtoConfig valid = makeConfig(611, 612, 180000);
     FakeTimer sleepTimer;
     FakeTimer idleTimer;
@@ -376,14 +347,11 @@ void test_valid_config_reaches_all_runtime_setters()
     TEST_ASSERT_EQUAL_UINT32(180000, pump.value);
 }
 
-
-
 /* ============================================================ */
 /* P1 serial-console parser hardening                             */
 /* ============================================================ */
 
-void test_parse_uint32_boundaries_and_invalid_tokens()
-{
+void test_parse_uint32_boundaries_and_invalid_tokens() {
     uint32_t value = 123;
 
     TEST_ASSERT_TRUE(AtoConfigConsole::parseUint32("0", value));
@@ -400,8 +368,7 @@ void test_parse_uint32_boundaries_and_invalid_tokens()
     TEST_ASSERT_FALSE(AtoConfigConsole::parseUint32(nullptr, value));
 }
 
-void test_console_numeric_parse_failure_has_no_side_effect()
-{
+void test_console_numeric_parse_failure_has_no_side_effect() {
     AtoConfig active = makeConfig(701, 702, 90000);
     const AtoConfig defaults = active;
     bool traceEnabled = false;
@@ -420,8 +387,7 @@ void test_console_numeric_parse_failure_has_no_side_effect()
     TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
 }
 
-void test_console_accepts_full_uint32_for_unbounded_timer_field()
-{
+void test_console_accepts_full_uint32_for_unbounded_timer_field() {
     AtoConfig active = makeConfig(711, 712, 90000);
     const AtoConfig defaults = active;
     bool traceEnabled = false;
@@ -435,8 +401,7 @@ void test_console_accepts_full_uint32_for_unbounded_timer_field()
     TEST_ASSERT_EQUAL_UINT8(1, consoleApplyCalls);
 }
 
-void test_console_strict_arity_rejects_extra_arguments_without_side_effects()
-{
+void test_console_strict_arity_rejects_extra_arguments_without_side_effects() {
     AtoConfig active = makeConfig(721, 722, 90000);
     const AtoConfig defaults = makeConfig(731, 732, 100000);
     bool traceEnabled = false;
@@ -471,8 +436,7 @@ void test_console_strict_arity_rejects_extra_arguments_without_side_effects()
     TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
 }
 
-void test_console_valid_command_forms_still_work()
-{
+void test_console_valid_command_forms_still_work() {
     AtoConfig active = makeConfig(751, 752, 90000);
     const AtoConfig defaults = makeConfig(761, 762, 100000);
     bool traceEnabled = false;
@@ -506,8 +470,7 @@ void test_console_valid_command_forms_still_work()
     TEST_ASSERT_EQUAL_UINT32(100000, active.pumpMaxOnDurationMs);
 }
 
-void test_console_p0_pump_bounds_regression_through_parser()
-{
+void test_console_p0_pump_bounds_regression_through_parser() {
     AtoConfig active = makeConfig(771, 772, 90000);
     const AtoConfig defaults = active;
     bool traceEnabled = false;
@@ -532,8 +495,7 @@ void test_console_p0_pump_bounds_regression_through_parser()
     TEST_ASSERT_EQUAL_UINT8(2, consoleApplyCalls);
 }
 
-void test_console_other_malformed_commands_have_no_side_effects()
-{
+void test_console_other_malformed_commands_have_no_side_effects() {
     AtoConfig active = makeConfig(801, 802, 90000);
     const AtoConfig defaults = makeConfig(811, 812, 100000);
     bool traceEnabled = false;
@@ -561,8 +523,7 @@ void test_console_other_malformed_commands_have_no_side_effects()
     TEST_ASSERT_EQUAL_UINT8(0, consoleApplyCalls);
 }
 
-void test_console_oversized_line_is_discarded_once_and_next_command_works()
-{
+void test_console_oversized_line_is_discarded_once_and_next_command_works() {
     AtoConfig active = makeConfig(781, 782, 90000);
     const AtoConfig defaults = active;
     bool traceEnabled = false;
@@ -571,19 +532,15 @@ void test_console_oversized_line_is_discarded_once_and_next_command_works()
     AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
 
     uint8_t overflowSignals = 0;
-    for (uint8_t i = 0; i < 48; ++i)
-    {
-        if (console.processInputChar('X') == AtoConfigConsole::INPUT_LINE_TOO_LONG)
-        {
+    for (uint8_t i = 0; i < 48; ++i) {
+        if (console.processInputChar('X') == AtoConfigConsole::INPUT_LINE_TOO_LONG) {
             overflowSignals++;
         }
     }
 
     const char *suffix = "SET PUMP_MAX_ON_MS 5000";
-    while (*suffix)
-    {
-        if (console.processInputChar(*suffix++) == AtoConfigConsole::INPUT_LINE_TOO_LONG)
-        {
+    while (*suffix) {
+        if (console.processInputChar(*suffix++) == AtoConfigConsole::INPUT_LINE_TOO_LONG) {
             overflowSignals++;
         }
     }
@@ -594,8 +551,7 @@ void test_console_oversized_line_is_discarded_once_and_next_command_works()
     TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\n'));
 
     const char *valid = "SET PUMP_MAX_ON_MS 5000";
-    while (*valid)
-    {
+    while (*valid) {
         TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*valid++));
     }
     TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_LINE_READY, console.processInputChar('\n'));
@@ -603,8 +559,7 @@ void test_console_oversized_line_is_discarded_once_and_next_command_works()
     TEST_ASSERT_EQUAL_UINT32(5000, active.pumpMaxOnDurationMs);
 }
 
-void test_console_max_length_crlf_and_backspace_behavior()
-{
+void test_console_max_length_crlf_and_backspace_behavior() {
     AtoConfig active = makeConfig(791, 792, 90000);
     const AtoConfig defaults = active;
     bool traceEnabled = false;
@@ -612,14 +567,16 @@ void test_console_max_length_crlf_and_backspace_behavior()
     AtoConfigConsole console(active, defaults, acceptValidConfig, traceEnabled, traceVerbose);
 
     const char *help = "HELP";
-    while (*help) TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*help++));
+    while (*help)
+        TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*help++));
     for (uint8_t i = 0; i < 43; ++i)
         TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(' '));
     TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_LINE_READY, console.processInputChar('\n'));
     TEST_ASSERT_TRUE(console.executeBufferedLine());
 
     const char *typo = "GETX";
-    while (*typo) TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*typo++));
+    while (*typo)
+        TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*typo++));
     TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\b'));
     TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_LINE_READY, console.processInputChar('\n'));
     TEST_ASSERT_TRUE(console.executeBufferedLine());
@@ -631,7 +588,8 @@ void test_console_max_length_crlf_and_backspace_behavior()
     TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\n'));
 
     const char *get = "GET";
-    while (*get) TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*get++));
+    while (*get)
+        TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar(*get++));
     TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_NONE, console.processInputChar('\r'));
     TEST_ASSERT_EQUAL(AtoConfigConsole::INPUT_LINE_READY, console.processInputChar('\n'));
     TEST_ASSERT_TRUE(console.executeBufferedLine());
@@ -641,8 +599,7 @@ void test_console_max_length_crlf_and_backspace_behavior()
 /* Unity runner                                                   */
 /* ============================================================ */
 
-void setup()
-{
+void setup() {
     delay(2000);
 
     UNITY_BEGIN();
@@ -672,6 +629,5 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
+void loop() {
 }

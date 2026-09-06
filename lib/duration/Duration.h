@@ -4,10 +4,8 @@
 
 #include <Arduino.h>
 
-namespace xal
-{
-    namespace duration
-    {
+namespace xal {
+    namespace duration {
         constexpr uint32_t MILLIS_0 = 0;
         constexpr uint32_t SECONDS_0 = 0;
         constexpr uint32_t MINUTES_0 = 0;

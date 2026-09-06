@@ -6,10 +6,8 @@
 #include "api/AbstractSwitchable.h"
 #include <Timer.h>
 
-namespace xal
-{
-    namespace ato
-    {
+namespace xal {
+    namespace ato {
 
         /**
          * @brief Recursive constexpr sum, valid under strict C++11 constexpr
@@ -18,14 +16,12 @@ namespace xal
          * -std=gnu++11 or a more permissive later standard.
          */
         template <size_t N>
-        constexpr uint32_t sumPatternFrom(const uint32_t (&pattern)[N], size_t startIndex)
-        {
+        constexpr uint32_t sumPatternFrom(const uint32_t (&pattern)[N], size_t startIndex) {
             return (startIndex >= N) ? 0 : (pattern[startIndex] + sumPatternFrom(pattern, startIndex + 1));
         }
 
         template <size_t N>
-        constexpr uint32_t sumPattern(const uint32_t (&pattern)[N])
-        {
+        constexpr uint32_t sumPattern(const uint32_t (&pattern)[N]) {
             return sumPatternFrom(pattern, 0);
         }
 
@@ -131,8 +127,7 @@ namespace xal
          * - Configure the AtoActions instance with the appropriate components.
          * - Use the provided methods to control the components based on the system's state and events.
          */
-        class AtoActions
-        {
+        class AtoActions {
         private:
             AbstractCyclicSwitchable *redLed = nullptr;
             AbstractCyclicSwitchable *yellowLed = nullptr;
@@ -149,8 +144,7 @@ namespace xal
 
             /* State actions */
 
-            void onExitState()
-            {
+            void onExitState() {
                 setOff(redLed);
                 setOff(yellowLed);
                 setOff(greenLed);
@@ -160,70 +154,75 @@ namespace xal
                 setOff(idleTimer);
             }
 
-            void onEntryIdleState()
-            {
+            void onEntryIdleState() {
                 setOn(greenLed, led_blink_pattern_slow);
                 setOn(idleTimer);
             }
 
-            void onEntryIdleForTooLongState()
-            {
+            void onEntryIdleForTooLongState() {
                 setOn(greenLed, led_blink_pattern_slow);
                 setOn(redLed, led_blink_pattern_slow);
                 setOn(buzzer, buzzer_idle_for_too_long_pattern);
             }
 
-            void onEntryDispensingInAutoModeState()
-            {
+            void onEntryDispensingInAutoModeState() {
                 setOn(greenLed, led_always_on);
                 setOn(waterDispenser);
             }
 
-            void onEntryDispensingInManualModeState()
-            {
+            void onEntryDispensingInManualModeState() {
                 setOn(greenLed, led_blink_pattern_fast);
                 setOn(waterDispenser);
             }
 
-            void onEntryWaterLowState()
-            {
+            void onEntryWaterLowState() {
                 setOn(redLed, led_blink_pattern_fast);
                 setOn(buzzer, buzzer_water_low_pattern);
             }
 
-            void onEntryWaterHighState()
-            {
+            void onEntryWaterHighState() {
                 setOn(redLed, led_blink_pattern_fast);
                 setOn(buzzer, buzzer_water_high_pattern);
             }
 
-            void onEntryReservoirEmptyState()
-            {
+            void onEntryReservoirEmptyState() {
                 setOn(redLed, led_blink_pattern_slow);
                 setOn(buzzer, buzzer_reservoir_pattern);
             }
 
-            void onEntrySleepingState()
-            {
+            void onEntrySleepingState() {
                 setOn(yellowLed, led_blink_pattern_slow);
                 setOn(sleepTimer);
             }
 
-            void onEntryErrorState()
-            {
+            void onEntryErrorState() {
                 setOn(redLed, led_blink_pattern_fast);
                 setOn(buzzer, buzzer_error_pattern);
             }
 
             /* Setters */
 
-            void setRedLed(AbstractCyclicSwitchable *redLedPtr) { AtoActions::redLed = redLedPtr; }
-            void setYellowLed(AbstractCyclicSwitchable *yellowLedPtr) { AtoActions::yellowLed = yellowLedPtr; }
-            void setGreenLed(AbstractCyclicSwitchable *greenLedPtr) { AtoActions::greenLed = greenLedPtr; }
-            void setBuzzer(AbstractCyclicSwitchable *buzzerPtr) { AtoActions::buzzer = buzzerPtr; }
-            void setWaterDispenser(AbstractSwitchable *waterDispenserPtr) { AtoActions::waterDispenser = waterDispenserPtr; }
-            void setSleepTimer(Timer *sleepTimer) { AtoActions::sleepTimer = sleepTimer; }
-            void setIdleTimer(Timer *idleTimer) { AtoActions::idleTimer = idleTimer; }
+            void setRedLed(AbstractCyclicSwitchable *redLedPtr) {
+                AtoActions::redLed = redLedPtr;
+            }
+            void setYellowLed(AbstractCyclicSwitchable *yellowLedPtr) {
+                AtoActions::yellowLed = yellowLedPtr;
+            }
+            void setGreenLed(AbstractCyclicSwitchable *greenLedPtr) {
+                AtoActions::greenLed = greenLedPtr;
+            }
+            void setBuzzer(AbstractCyclicSwitchable *buzzerPtr) {
+                AtoActions::buzzer = buzzerPtr;
+            }
+            void setWaterDispenser(AbstractSwitchable *waterDispenserPtr) {
+                AtoActions::waterDispenser = waterDispenserPtr;
+            }
+            void setSleepTimer(Timer *sleepTimer) {
+                AtoActions::sleepTimer = sleepTimer;
+            }
+            void setIdleTimer(Timer *idleTimer) {
+                AtoActions::idleTimer = idleTimer;
+            }
 
         private:
             /**
@@ -236,36 +235,28 @@ namespace xal
              * in CyclicSwitchable::process(); here the two cannot desync.
              */
             template <uint8_t N>
-            static void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint32_t (&pattern)[N])
-            {
+            static void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint32_t (&pattern)[N]) {
                 static_assert(N >= 1, "cycle pattern must be non-empty");
                 setOn(cyclicSwitchable, N, pattern);
             }
 
-            static void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint8_t patternSize, const uint32_t *pattern)
-            {
-                if (cyclicSwitchable != nullptr)
-                {
-                    if ((pattern != nullptr) && (patternSize > 0))
-                    {
+            static void setOn(AbstractCyclicSwitchable *cyclicSwitchable, const uint8_t patternSize, const uint32_t *pattern) {
+                if (cyclicSwitchable != nullptr) {
+                    if ((pattern != nullptr) && (patternSize > 0)) {
                         cyclicSwitchable->setCycleArray(patternSize, pattern);
                     }
                     cyclicSwitchable->setOn();
                 }
             }
 
-            static void setOn(AbstractSwitchable *switchable)
-            {
-                if (switchable != nullptr)
-                {
+            static void setOn(AbstractSwitchable *switchable) {
+                if (switchable != nullptr) {
                     switchable->setOn();
                 }
             }
 
-            static void setOff(AbstractSwitchable *switchable)
-            {
-                if (switchable != nullptr)
-                {
+            static void setOff(AbstractSwitchable *switchable) {
+                if (switchable != nullptr) {
                     switchable->setOff();
                 }
             }

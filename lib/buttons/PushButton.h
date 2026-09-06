@@ -6,8 +6,7 @@
 #include <RingBuffer.h>
 #include <Runnable.h>
 
-namespace xal
-{
+namespace xal {
 
     using Callback = void (*)();
 
@@ -15,8 +14,7 @@ namespace xal
      * @class PushButton
      * @brief The base class for push button functionality.
      */
-    class PushButton : public Runnable
-    {
+    class PushButton : public Runnable {
     private:
         uint8_t pin;                        /**< The pin number of the push button. */
         uint8_t pinModeState = INPUT;       /**< The pin mode of the push button. Can be INPUT or INPUT_PULLUP. */
@@ -57,8 +55,7 @@ namespace xal
               pinStateWhenReleased(pinStateWhenReleased),
               previousState(pinStateWhenReleased),
               debounceMs(debounceMs),
-              longPressMs(longPressMs)
-        {
+              longPressMs(longPressMs) {
             buffer.fill(pinStateWhenReleased);
         }
 
@@ -72,8 +69,7 @@ namespace xal
          * @param callback The callback for a short press.
          * @return The PushButton object.
          */
-        void setShortPressCallback(Callback callback)
-        {
+        void setShortPressCallback(Callback callback) {
             shortPressCallback = callback;
         }
 
@@ -82,8 +78,7 @@ namespace xal
          * @param callback The callback for a long press.
          * @return The PushButton object.
          */
-        void setLongPressCallback(Callback callback)
-        {
+        void setLongPressCallback(Callback callback) {
             longPressCallback = callback;
         }
 
@@ -96,8 +91,7 @@ namespace xal
          * @note This function must be called in the setup() function of the sketch using the following code:
          * @example Runnable.setupAll();
          */
-        void setup() override
-        {
+        void setup() override {
             pinMode(pin, pinModeState);
         }
 
@@ -105,8 +99,7 @@ namespace xal
          * @brief Returns the current debounced pressed/released state.
          * @return true if the button is currently (debounced) pressed, false if released.
          */
-        bool isPressed() const
-        {
+        bool isPressed() const {
             return previousState != pinStateWhenReleased;
         }
 
@@ -119,31 +112,22 @@ namespace xal
          * the debounce buffer this call.
          * @param nowMs The current time in milliseconds (normally millis()).
          */
-        void process(uint8_t rawReading, uint32_t nowMs)
-        {
+        void process(uint8_t rawReading, uint32_t nowMs) {
             buffer.push(rawReading);
             uint8_t state = buffer.average();
 
-            if (state != previousState)
-            {
-                if (state == pinStateWhenReleased)
-                {
+            if (state != previousState) {
+                if (state == pinStateWhenReleased) {
                     /* button is released */
-                    if (nowMs - lastPressTime > debounceMs)
-                    {
+                    if (nowMs - lastPressTime > debounceMs) {
                         /* button is released after debounce time */
-                        if ((nowMs - lastPressTime < longPressMs) && (shortPressCallback != nullptr))
-                        {
+                        if ((nowMs - lastPressTime < longPressMs) && (shortPressCallback != nullptr)) {
                             shortPressCallback();
-                        }
-                        else if (longPressCallback != nullptr)
-                        {
+                        } else if (longPressCallback != nullptr) {
                             longPressCallback();
                         }
                     }
-                }
-                else
-                {
+                } else {
                     /* button is pressed */
                     lastPressTime = nowMs;
                 }
@@ -158,8 +142,7 @@ namespace xal
          * @note This function must be called in the loop() function of the sketch using the following code:
          * @example Runnable.loopAll();
          */
-        void loop() override
-        {
+        void loop() override {
             process(digitalRead(pin), millis());
         };
     };
