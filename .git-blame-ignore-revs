@@ -1,0 +1,3 @@
+# Whole-tree clang-format adoption (K&R). Not a logic change.
+# Enable locally with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+530ecb477b3a0f37e4c46172d9d77597d8ddef83
