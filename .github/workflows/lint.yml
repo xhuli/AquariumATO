@@ -1,0 +1,49 @@
+name: Lint
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# Cancel a still-running instance of this workflow on the same branch when a
+# new push supersedes it, instead of letting both run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clang-tidy:
+    name: clang-tidy (pio check)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install clang-tidy
+        run: sudo apt-get update && sudo apt-get install -y clang-tidy
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
+
+      - name: Install PlatformIO
+        run: pip install -U platformio
+
+      # `pio check` runs clang-tidy per platformio.ini (check_tool = clangtidy)
+      # against the project's own src/ + include/ + lib/, using the repo-root
+      # .clang-tidy. The full medium-severity report prints to the log; the
+      # job only *fails* on a high-severity defect - so it is green today and
+      # gates against future high findings. Tighten to --fail-on-defect=medium
+      # once the medium backlog is worked down.
+      - name: clang-tidy
+        run: pio check -e nanoatmega328 --fail-on-defect=high
