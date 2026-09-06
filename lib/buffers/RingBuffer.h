@@ -113,20 +113,26 @@ namespace xal {
         }
 
         /**
-         * @brief Gets the average of all values in the buffer.
-         * @return The average of all values in the buffer.
+         * @brief Mean of all stored values, rounded to nearest.
+         * @details Integer arithmetic only - no floating point. The sum is
+         * accumulated in a uint32_t and divided round-half-up. Intended for
+         * non-negative integral T (this buffer is used for LOW/HIGH debounce
+         * majority-voting); with a signed T holding negative values the
+         * half-way case would round toward positive infinity instead of away
+         * from zero.
+         * @return The rounded mean, or T() when the buffer is empty.
          */
         T average() const {
             if (count == 0) {
                 return T();
             }
 
-            double sum = 0;
+            uint32_t sum = 0;
             for (uint8_t i = 0; i < count; i++) {
                 sum += get(i);
             }
 
-            return static_cast<T>(round(sum / count));
+            return static_cast<T>((sum + count / 2) / count);
         }
     };
 
