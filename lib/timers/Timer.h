@@ -18,7 +18,7 @@ namespace xal {
      */
     class Timer : virtual public AbstractSwitchable,
                   virtual public Runnable {
-        typedef void (*Callback)(); /**< Type definition for the timer callback function. */
+        using Callback = void (*)(); /**< Type definition for the timer callback function. */
 
     private:
         uint32_t durationMs = 0;    /**< The duration of the timer in milliseconds. */

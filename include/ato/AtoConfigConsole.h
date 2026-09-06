@@ -39,7 +39,7 @@ namespace xal {
          * @implements Runnable
          */
         class AtoConfigConsole : public Runnable {
-            typedef bool (*ApplyCallback)(const AtoConfig &);
+            using ApplyCallback = bool (*)(const AtoConfig &);
 
         private:
             static constexpr uint8_t BUFFER_SIZE = 48;
@@ -252,14 +252,16 @@ namespace xal {
                 }
 
                 if (equalsIgnoreCase(command, "HELP")) {
-                    if (rejectExtraArguments())
+                    if (rejectExtraArguments()) {
                         return false;
+                    }
                     printHelp();
                     return true;
                 }
                 if (equalsIgnoreCase(command, "GET")) {
-                    if (rejectExtraArguments())
+                    if (rejectExtraArguments()) {
                         return false;
+                    }
                     printConfig();
                     return true;
                 }
@@ -267,8 +269,9 @@ namespace xal {
                     return handleSet();
                 }
                 if (equalsIgnoreCase(command, "SAVE")) {
-                    if (rejectExtraArguments())
+                    if (rejectExtraArguments()) {
                         return false;
+                    }
                     if (AtoConfigStore::save(config)) {
                         Serial.println(F("Saved to EEPROM."));
                         return true;
@@ -277,8 +280,9 @@ namespace xal {
                     return false;
                 }
                 if (equalsIgnoreCase(command, "RESET")) {
-                    if (rejectExtraArguments())
+                    if (rejectExtraArguments()) {
                         return false;
+                    }
                     if (applyCallback(defaults)) {
                         config = defaults;
                         Serial.println(F("Reset to compiled defaults (not yet saved; use SAVE)."));

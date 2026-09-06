@@ -40,8 +40,8 @@ namespace ato {
     }; /* namespace McuPin */
 }; /* namespace ato */
 
-constexpr uint8_t WHEN_ON__PIN_HIGH = HIGH;
-constexpr uint8_t WHEN_ON__PIN_LOW = LOW;
+constexpr uint8_t WHEN_ON_PIN_HIGH = HIGH;
+constexpr uint8_t WHEN_ON_PIN_LOW = LOW;
 
 constexpr uint8_t INITIAL_READING_HIGH = HIGH;
 constexpr uint8_t INITIAL_READING_LOW = LOW;
@@ -77,11 +77,11 @@ bool applyAtoConfig(const xal::ato::AtoConfig &config);
 
 /* << Initialization >> */
 
-xal::Switchable switchableRedLed(ato::McuPin::RedLed, WHEN_ON__PIN_HIGH);
-xal::Switchable switchableYellowLed(ato::McuPin::YellowLed, WHEN_ON__PIN_HIGH);
-xal::Switchable switchableGreenLed(ato::McuPin::GreenLed, WHEN_ON__PIN_HIGH);
-xal::Switchable switchableBuzzer(ato::McuPin::Buzzer, WHEN_ON__PIN_HIGH);
-xal::Switchable switchableWaterPump(ato::McuPin::WaterPump, WHEN_ON__PIN_HIGH);
+xal::Switchable switchableRedLed(ato::McuPin::RedLed, WHEN_ON_PIN_HIGH);
+xal::Switchable switchableYellowLed(ato::McuPin::YellowLed, WHEN_ON_PIN_HIGH);
+xal::Switchable switchableGreenLed(ato::McuPin::GreenLed, WHEN_ON_PIN_HIGH);
+xal::Switchable switchableBuzzer(ato::McuPin::Buzzer, WHEN_ON_PIN_HIGH);
+xal::Switchable switchableWaterPump(ato::McuPin::WaterPump, WHEN_ON_PIN_HIGH);
 
 xal::CyclicSwitchable redLed(switchableRedLed);
 xal::CyclicSwitchable yellowLed(switchableYellowLed);
@@ -92,20 +92,20 @@ xal::TimedSwitchable waterPump(switchableWaterPump);
 
 xal::LiquidLevelSensor normalLevelSensor(
     ato::McuPin::NormalLiquidLevelSensor,
-    WHEN_ON__PIN_HIGH,
+    WHEN_ON_PIN_HIGH,
     PERIODIC_PUSH_READING_PERIOD,
     INITIAL_READING_HIGH);
 
 xal::LiquidLevelSensor highLevelSensor(
     ato::McuPin::HighLiquidLevelSensor,
-    WHEN_ON__PIN_HIGH,
+    WHEN_ON_PIN_HIGH,
     PERIODIC_PUSH_READING_PERIOD,
     INITIAL_READING_LOW);
 
 #ifdef ATO_HAS_LOW_SENSOR
 xal::LiquidLevelSensor lowLevelSensor(
     ato::McuPin::LowLiquidLevelSensor,
-    WHEN_ON__PIN_HIGH,
+    WHEN_ON_PIN_HIGH,
     PERIODIC_PUSH_READING_PERIOD,
     INITIAL_READING_HIGH);
 #endif
@@ -113,7 +113,7 @@ xal::LiquidLevelSensor lowLevelSensor(
 #ifdef ATO_HAS_RESERVOIR_SENSOR
 xal::LiquidLevelSensor reservoirLevelSensor(
     ato::McuPin::ReservoirLowLevelSensor,
-    WHEN_ON__PIN_HIGH,
+    WHEN_ON_PIN_HIGH,
     PERIODIC_PUSH_READING_PERIOD,
     INITIAL_READING_HIGH);
 #endif

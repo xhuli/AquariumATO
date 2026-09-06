@@ -207,7 +207,7 @@ namespace xal {
              * state to itself (not currently possible in TRANSITION_TABLE,
              * but the callback signature doesn't assume otherwise).
              */
-            typedef void (*TraceCallback)(State fromState, Event event, State toState, bool matched);
+            using TraceCallback = void (*)(State fromState, Event event, State toState, bool matched);
 
         private:
             State state = State::Idle;

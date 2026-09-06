@@ -140,6 +140,11 @@ namespace xal {
                 AtoConfig current{};
                 EEPROM.get(CONFIG_EEPROM_ADDRESS, current);
 
+                /* Safe here: AtoConfig is __attribute__((packed)) with only
+                   integer members, so there are no padding bytes and no
+                   float representations - the object representation is unique
+                   and a raw compare is well-defined. */
+                // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison,cert-exp42-c,cert-flp37-c)
                 if (memcmp(&current, &config, sizeof(AtoConfig)) != 0) {
                     EEPROM.put(CONFIG_EEPROM_ADDRESS, config);
                 }

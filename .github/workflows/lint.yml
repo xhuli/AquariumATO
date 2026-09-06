@@ -41,9 +41,15 @@ jobs:
 
       # `pio check` runs clang-tidy per platformio.ini (check_tool = clangtidy)
       # against the project's own src/ + include/ + lib/, using the repo-root
-      # .clang-tidy. The full medium-severity report prints to the log; the
-      # job only *fails* on a high-severity defect - so it is green today and
-      # gates against future high findings. Tighten to --fail-on-defect=medium
-      # once the medium backlog is worked down.
+      # .clang-tidy. It fails only on a high-severity defect.
+      #
+      # The medium-severity list printed to the log is NOT a clean to-do:
+      # clang-tidy cannot fully parse this AVR/GCC translation unit (GCC AVR
+      # builtins), so its data-flow checks (init-variables, const-correctness,
+      # convert-to-static, member-init, branch-clone) emit false positives on
+      # trivially-correct code. The reliable signal here is the lexical checks
+      # and the high-severity gate; the authoritative linter is CLion/clangd
+      # locally, which compiles with the real flags. Do NOT switch this to
+      # --fail-on-defect=medium.
       - name: clang-tidy
         run: pio check -e nanoatmega328 --fail-on-defect=high

@@ -20,7 +20,7 @@ namespace xal {
      * @implements Runnable
      */
     class LiquidLevelSensor : public Runnable {
-        typedef void (*Callback)();
+        using Callback = void (*)();
 
     private:
         const uint8_t pin;                         /**< The pin number of the liquid level sensor. */

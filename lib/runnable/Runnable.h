@@ -38,10 +38,11 @@ namespace xal {
         Runnable(Runnable &&) = delete;
         Runnable &operator=(Runnable &&) = delete;
 
-        Runnable() {
-            /* LIFO: head will point to last instance, first instance will point to null */
-            next = head(); /* save pointer to previous instance */
-            head() = this; /* move head to this instance */
+        /* LIFO registry: `next` captures the previous head, then this
+           instance becomes the new head. First-ever instance gets next ==
+           nullptr. */
+        Runnable() : next(head()) {
+            head() = this;
         }
 
         virtual ~Runnable() = default;

@@ -19,7 +19,7 @@ namespace xal {
      */
     class TimedSwitchable : public AbstractSwitchable,
                             public Runnable {
-        typedef void (*Callback)();
+        using Callback = void (*)();
 
     private:
         AbstractSwitchable &switchable; /**< A switchable component */

@@ -46,7 +46,11 @@ Checks: >
   -hicpp-no-array-decay,
   -cppcoreguidelines-special-member-functions,
   -hicpp-special-member-functions,
-  -clang-diagnostic-shadow-field
+  -clang-diagnostic-shadow-field,
+  -concurrency-mt-unsafe,
+  -cert-err58-cpp,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -misc-non-private-member-variables-in-classes
 
 # Rationale for the non-obvious disables:
 #   modernize-deprecated-headers ...... <string.h> etc. are idiomatic in the
@@ -83,6 +87,15 @@ Checks: >
 #                                       `this->` prefix already disambiguates.
 #                                       Broader -Wshadow (locals shadowing
 #                                       locals) stays on.
+#   concurrency-mt-unsafe ............ single-threaded firmware, no scheduler;
+#                                       strtok/etc. reentrancy is a non-issue.
+#   cert-err58-cpp ................... the components are file-scope Arduino
+#                                       globals by design and the build has no
+#                                       exceptions - a throwing static init
+#                                       cannot occur.
+#   *-non-private-member-variables ... the Switchable / AbstractSwitchable base
+#                                       classes expose a few protected fields to
+#                                       their subclasses on purpose.
 
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*/(include|lib)/.*'
