@@ -171,6 +171,8 @@ The suite covers:
 * self-healing of invalid persisted data by restoring safe defaults;
 * semantic validation of `PUMP_MAX_ON_MS`;
 * rejection of `PUMP_MAX_ON_MS=0`;
+* rejection of `SLEEP_MAX_MS=0` / `IDLE_MAX_MS=0`, while small non-zero values stay accepted;
+* the sub-minute timer advisory helper (`isBelowTimerAdvisoryMin`);
 * rejection of pump timeouts below the configured minimum;
 * rejection of pump timeouts above the configured maximum;
 * rejection of structurally valid EEPROM data containing an unsafe pump timeout;

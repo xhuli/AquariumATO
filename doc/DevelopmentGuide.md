@@ -248,6 +248,8 @@ When its maximum ON time elapses, it turns the pump off before invoking the time
 
 A configured maximum duration of zero in `TimedSwitchable` means no automatic timeout. Because that would disable the pump safety cutoff, configuration validation explicitly prevents `PUMP_MAX_ON_MS = 0` from reaching the live pump configuration.
 
+`Timer` (used for the sleep and idle windows) has the opposite zero semantics: a duration of `0` is "always elapsed", firing every loop. Configuration validation therefore also rejects `SLEEP_MAX_MS = 0` and `IDLE_MAX_MS = 0`. Non-zero values below one minute are permitted but flagged with a `WARN` on the console (on `SET`, on `GET`, and once at runtime when the FSM enters the affected state).
+
 All elapsed-time checks use unsigned subtraction (`now - previous`), preserving normal Arduino `millis()` rollover behavior.
 
 ## 9. Configuration architecture

@@ -189,7 +189,7 @@ SAVE
 
 `SET` applies a valid value immediately but does **not** persist it. `SAVE` writes the current configuration to EEPROM. `RESET` restores the compiled defaults in memory but does not persist them until `SAVE` is issued.
 
-`PUMP_MAX_ON_MS` is safety validated and accepts only **5000..180000 ms** inclusive. Invalid configuration is rejected rather than clamped or silently applied.
+`PUMP_MAX_ON_MS` is safety validated and accepts only **5000..180000 ms** inclusive. `SLEEP_MAX_MS` and `IDLE_MAX_MS` must be greater than `0` (a `0` timer would elapse every loop); a value below **60000 ms** is accepted but prints a `WARN`, including once at runtime when the short timer's state is actually entered. Invalid configuration is rejected rather than clamped or silently applied.
 
 `TRACE ON` logs FSM transitions. `TRACE ALL` also logs dispatched events that match no transition rule. Tracing is intended for diagnostics and is not persisted.
 

@@ -263,7 +263,11 @@ Commands are line-oriented. Unexpected arguments and invalid values are rejected
 | `IDLE_MAX_MS` | Maximum time continuously in Idle before the Idle-Too-Long warning | `21600000` (6 h) |
 | `PUMP_MAX_ON_MS` | Maximum single continuous pump runtime | `90000` (90 s) |
 
-`PUMP_MAX_ON_MS` must be between `5000` and `180000` ms inclusive.
+Validation:
+
+- `PUMP_MAX_ON_MS` must be between `5000` and `180000` ms inclusive.
+- `SLEEP_MAX_MS` and `IDLE_MAX_MS` must be greater than `0`. A value of `0` makes the timer elapse on every loop, so it is rejected outright.
+- `SLEEP_MAX_MS` or `IDLE_MAX_MS` below `60000` ms (1 minute) is accepted but triggers a warning — see [11.5](#115-timer-value-warnings).
 
 ### 11.3 View current settings
 
@@ -303,7 +307,36 @@ Then persist it:
 SAVE
 ```
 
-### 11.5 Restore defaults
+### 11.5 Timer value warnings
+
+`SLEEP_MAX_MS` and `IDLE_MAX_MS` accept any value above `0`, but a value below `60000` ms (1 minute) is almost always a mistake: the corresponding timer then elapses within a minute of the controller entering Sleep or Idle. Such a value is applied anyway, with a `WARN` line:
+
+- on `SET`, right after `Applied`;
+- on `GET`, after the value list;
+- once at runtime, the moment the FSM actually enters `IdleForTooLong` or `Sleeping` with that value in effect (this also catches a short value that was already saved to EEPROM).
+
+Real session (setting a deliberately short idle window, then reverting):
+
+```text
+get
+SLEEP_MAX_MS=7200000
+IDLE_MAX_MS=21600000
+PUMP_MAX_ON_MS=90000
+
+set idle_max_ms 300
+WARN IDLE_MAX_MS below 60000 ms; its timer elapses within a minute of entering that state
+Applied (not yet saved; use SAVE).
+WARN entered IdleForTooLong with IDLE_MAX_MS=300 ms (below advisory minimum)
+
+reset
+Reset to compiled defaults (not yet saved; use SAVE).
+save
+Saved to EEPROM.
+```
+
+Commands are case-insensitive.
+
+### 11.6 Restore defaults
 
 Enter:
 
@@ -317,7 +350,7 @@ This immediately restores the compiled defaults in RAM, but does not save them t
 SAVE
 ```
 
-### 11.6 Trace FSM activity
+### 11.7 Trace FSM activity
 
 For ordinary troubleshooting:
 
