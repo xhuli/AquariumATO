@@ -138,6 +138,78 @@ struct Transition
 
 A dispatch with no matching `(state, event)` pair leaves the FSM in the same state. With `TRACE ALL`, such ignored events can be observed on the serial console.
 
+### State diagram
+
+Visual companion to `TRANSITION_TABLE`, transcribed 1:1 from `include/ato/AtoFsm.h`. `TRANSITION_TABLE` and `test/test_ato_fsm/test_ato_fsm.cpp` remain authoritative — update this diagram alongside the table when either changes.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+
+    Idle --> WaterLevelHigh : HighLevelSensorIsTriggered
+    Idle --> WaterLevelLow : LowLevelSensorNotTriggered
+    Idle --> Error : SleepTimeElapsed
+    Idle --> Error : DispenserOnTimeElapsed
+    Idle --> DispensingInAutoMode : NormalLevelSensorNotTriggered
+    Idle --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
+    Idle --> DispensingInManualMode : DispenseButtonIsPushed
+    Idle --> IdleForTooLong : MaxIdleTimeElapsed
+    Idle --> Sleeping : SleepButtonIsPushed
+
+    DispensingInAutoMode --> WaterLevelHigh : HighLevelSensorIsTriggered
+    DispensingInAutoMode --> WaterLevelLow : LowLevelSensorNotTriggered
+    DispensingInAutoMode --> Error : SleepTimeElapsed
+    DispensingInAutoMode --> Idle : NormalLevelSensorIsTriggered
+    DispensingInAutoMode --> Idle : DispenseButtonIsPushed
+    DispensingInAutoMode --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
+    DispensingInAutoMode --> ReservoirEmpty : DispenserOnTimeElapsed
+    DispensingInAutoMode --> Sleeping : SleepButtonIsPushed
+
+    DispensingInManualMode --> WaterLevelHigh : HighLevelSensorIsTriggered
+    DispensingInManualMode --> Error : SleepTimeElapsed
+    DispensingInManualMode --> Idle : NormalLevelSensorIsTriggered
+    DispensingInManualMode --> Idle : DispenseButtonIsPushed
+    DispensingInManualMode --> Idle : DispenserOnTimeElapsed
+    DispensingInManualMode --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
+    DispensingInManualMode --> Sleeping : SleepButtonIsPushed
+
+    WaterLevelLow --> Idle : LowLevelSensorIsTriggered
+    WaterLevelLow --> Idle : NormalLevelSensorIsTriggered
+    WaterLevelLow --> DispensingInManualMode : DispenseButtonIsPushed
+    WaterLevelLow --> Sleeping : SleepButtonIsPushed
+
+    WaterLevelHigh --> Idle : DispenseButtonIsPushed
+    WaterLevelHigh --> Idle : HighLevelSensorNotTriggered
+    WaterLevelHigh --> Sleeping : SleepButtonIsPushed
+    WaterLevelHigh --> Error : NormalLevelSensorNotTriggered
+    WaterLevelHigh --> Error : LowLevelSensorNotTriggered
+
+    ReservoirEmpty --> Error : HighLevelSensorIsTriggered
+    ReservoirEmpty --> Error : LowLevelSensorNotTriggered
+    ReservoirEmpty --> Error : SleepTimeElapsed
+    ReservoirEmpty --> Error : DispenserOnTimeElapsed
+    ReservoirEmpty --> Idle : NormalLevelSensorIsTriggered
+    ReservoirEmpty --> Idle : DispenseButtonIsPushed
+    ReservoirEmpty --> Idle : ReservoirLevelSensorIsTriggered
+    ReservoirEmpty --> Sleeping : SleepButtonIsPushed
+
+    Sleeping --> Idle : DispenseButtonIsPushed
+    Sleeping --> Idle : SleepButtonIsPushed
+    Sleeping --> Idle : SleepTimeElapsed
+
+    IdleForTooLong --> DispensingInAutoMode : NormalLevelSensorNotTriggered
+    IdleForTooLong --> Idle : DispenseButtonIsPushed
+    IdleForTooLong --> WaterLevelLow : LowLevelSensorNotTriggered
+    IdleForTooLong --> WaterLevelHigh : HighLevelSensorIsTriggered
+    IdleForTooLong --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
+    IdleForTooLong --> Sleeping : SleepButtonIsPushed
+
+    Error --> Idle : DispenseButtonIsPushed
+    Error --> Sleeping : SleepButtonIsPushed
+```
+
+Two patterns worth noticing in the graph: `SleepButtonIsPushed` reaches `Sleeping` from every other state (the sleep button always works), and `DispenseButtonIsPushed` is a manual override back to `Idle` from most non-`Idle` states.
+
 ### Adding a state
 
 When adding a state:
