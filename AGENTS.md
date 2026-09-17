@@ -2,7 +2,7 @@
 
 Repository: <https://github.com/xhuli/AquariumATO>
 
-Fast orientation for Claude in this project — what it is, where things live, which guide to search for specifics. Kept deliberately short; detail lives in the five guides under `doc/` and root `README.md`, not duplicated here.
+Fast orientation for coding agents working in this project — what it is, where things live, which guide to search for specifics. Kept deliberately short; detail lives in the five guides under `doc/` and root `README.md`, not duplicated here.
 
 ---
 
