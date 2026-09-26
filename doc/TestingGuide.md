@@ -160,11 +160,11 @@ Location:
 test/test_ato_actions/test_ato_actions.cpp
 ```
 
-This suite verifies `AtoActions`'s pump routing between automatic and manual dispensing, using a fake `AbstractSwitchable` for each of the two pump handles (`waterDispenser`, `manualWaterDispenser`) so no real pin or `TimedSwitchable` timing is involved.
+This suite verifies `AtoActions`'s pump routing between automatic and manual dispensing, using a fake `AbstractSwitchable` for each of the two pump handles (`autoWaterDispenser`, `manualWaterDispenser`) so no real pin or `TimedSwitchable` timing is involved.
 
 ### 4.1 What it verifies
 
-* `onEntryDispensingInAutoModeState()` turns on `waterDispenser` only;
+* `onEntryDispensingInAutoModeState()` turns on `autoWaterDispenser` only;
 * `onEntryDispensingInManualModeState()` turns on `manualWaterDispenser` only;
 * `onExitState()` turns off both pump handles unconditionally, regardless of which one was active;
 * entry/exit methods remain safe (no crash) when pump handles are left unset (`nullptr`).
@@ -173,7 +173,7 @@ This suite intentionally covers pump routing only. LED, buzzer, and timer side e
 
 ### 4.2 Why two pump handles exist
 
-`main.cpp` wires two separate `TimedSwitchable` instances onto the same physical pump pin: `waterPump` (automatic dispensing, user-configurable `PUMP_MAX_ON_MS` timeout) and `manualWaterPump` (manual dispensing, fixed at `PUMP_MAX_ON_MS_MAX`). See `doc/DevelopmentGuide.md` §11 for the safety rationale. This suite protects the routing logic in `AtoActions` that decides which handle a given dispensing mode drives; it does not re-test `TimedSwitchable`'s own timing behavior, which remains covered by `test_timed_switchable`.
+`main.cpp` wires two separate `TimedSwitchable` instances onto the same physical pump pin: `autoWaterPump` (automatic dispensing, user-configurable `PUMP_MAX_ON_MS` timeout) and `manualWaterPump` (manual dispensing, fixed at `PUMP_MAX_ON_MS_MAX`). See `doc/DevelopmentGuide.md` §11 for the safety rationale. This suite protects the routing logic in `AtoActions` that decides which handle a given dispensing mode drives; it does not re-test `TimedSwitchable`'s own timing behavior, which remains covered by `test_timed_switchable`.
 
 ## 5. `test_ato_config_store`
 

@@ -61,7 +61,7 @@ void test_auto_entry_turns_on_waterDispenser_only() {
     FakeSwitchable autoPump;
     FakeSwitchable manualPump;
     AtoActions actions;
-    actions.setWaterDispenser(&autoPump);
+    actions.setAutoWaterDispenser(&autoPump);
     actions.setManualWaterDispenser(&manualPump);
 
     actions.onEntryDispensingInAutoModeState();
@@ -74,7 +74,7 @@ void test_manual_entry_turns_on_manualWaterDispenser_only() {
     FakeSwitchable autoPump;
     FakeSwitchable manualPump;
     AtoActions actions;
-    actions.setWaterDispenser(&autoPump);
+    actions.setAutoWaterDispenser(&autoPump);
     actions.setManualWaterDispenser(&manualPump);
 
     actions.onEntryDispensingInManualModeState();
@@ -87,7 +87,7 @@ void test_exit_turns_off_both_dispensers_after_auto_entry() {
     FakeSwitchable autoPump;
     FakeSwitchable manualPump;
     AtoActions actions;
-    actions.setWaterDispenser(&autoPump);
+    actions.setAutoWaterDispenser(&autoPump);
     actions.setManualWaterDispenser(&manualPump);
 
     actions.onEntryDispensingInAutoModeState();
@@ -101,7 +101,7 @@ void test_exit_turns_off_both_dispensers_after_manual_entry() {
     FakeSwitchable autoPump;
     FakeSwitchable manualPump;
     AtoActions actions;
-    actions.setWaterDispenser(&autoPump);
+    actions.setAutoWaterDispenser(&autoPump);
     actions.setManualWaterDispenser(&manualPump);
 
     actions.onEntryDispensingInManualModeState();

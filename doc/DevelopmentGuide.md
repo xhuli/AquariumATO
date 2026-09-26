@@ -251,7 +251,7 @@ The project uses two related abstractions:
 - `Timer` for one-shot elapsed-time events such as sleep and maximum idle time;
 - `TimedSwitchable` for bounded ON/OFF time around a physical switchable device.
 
-The water pump uses `TimedSwitchable` — in fact two instances (`waterPump`, `manualWaterPump`) wrapping the same physical pin, one per dispensing mode; see §11 ("Manual dispensing's extended timeout") for why.
+The water pump uses `TimedSwitchable` — in fact two instances (`autoWaterPump`, `manualWaterPump`) wrapping the same physical pin, one per dispensing mode; see §11 ("Manual dispensing's extended timeout") for why.
 
 When its maximum ON time elapses, it turns the pump off before invoking the timeout callback. The callback then dispatches `DispenserOnTimeElapsed` to the FSM.
 
@@ -371,7 +371,7 @@ When modifying the pump path, add regression tests around the actual safety inva
 
 ### Manual dispensing's extended timeout
 
-`DispensingInManualMode` uses a separate `TimedSwitchable` (`manualWaterPump` in `main.cpp`), wrapping the same physical pump pin as the automatic-dispensing `waterPump`, but with its maximum-on timeout fixed at `PUMP_MAX_ON_MS_MAX` (3 minutes) rather than the user-configurable `PUMP_MAX_ON_MS`. `AtoActions` routes `onEntryDispensingInManualModeState()` to this second handle via a dedicated `manualWaterDispenser` pointer, and `onExitState()` unconditionally turns off both handles so at most one is ever active.
+`DispensingInManualMode` uses a separate `TimedSwitchable` (`manualWaterPump` in `main.cpp`), wrapping the same physical pump pin as the automatic-dispensing `autoWaterPump`, but with its maximum-on timeout fixed at `PUMP_MAX_ON_MS_MAX` (3 minutes) rather than the user-configurable `PUMP_MAX_ON_MS`. `AtoActions` routes `onEntryDispensingInManualModeState()` to this second handle via a dedicated `manualWaterDispenser` pointer (paired with `autoWaterDispenser`/`setAutoWaterDispenser()` for the automatic path), and `onExitState()` unconditionally turns off both handles so at most one is ever active.
 
 This is deliberate, not an oversight: a manually triggered top-off implies the user is physically present (they just pressed the button) and can observe the reservoir/water level directly, and can cancel early with another short press (`DispensingInManualMode --> Idle`, already wired before this change). That justifies a longer worst-case pump runtime than is acceptable for unattended automatic dispensing, whose `PUMP_MAX_ON_MS` cutoff is the last line of defense if the normal-level sensor never triggers.
 
