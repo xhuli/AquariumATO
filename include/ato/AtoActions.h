@@ -120,7 +120,8 @@ namespace xal {
          * Components:
          * - LEDs (Red, Yellow, Green)
          * - Buzzer
-         * - Water Dispenser (Pump)
+         * - Water Dispenser (Pump), and a separate manual-mode handle onto
+         *   the same physical pump with its own maximum-on timeout
          * - Timers (Sleep and Idle)
          *
          * Usage:
@@ -134,6 +135,7 @@ namespace xal {
             AbstractCyclicSwitchable *greenLed = nullptr;
             AbstractCyclicSwitchable *buzzer = nullptr;
             AbstractSwitchable *waterDispenser = nullptr;
+            AbstractSwitchable *manualWaterDispenser = nullptr;
             Timer *sleepTimer = nullptr;
             Timer *idleTimer = nullptr;
 
@@ -150,6 +152,7 @@ namespace xal {
                 setOff(greenLed);
                 setOff(buzzer);
                 setOff(waterDispenser);
+                setOff(manualWaterDispenser);
                 setOff(sleepTimer);
                 setOff(idleTimer);
             }
@@ -170,9 +173,18 @@ namespace xal {
                 setOn(waterDispenser);
             }
 
+            /**
+             * @brief Manual dispensing uses a dedicated pump handle
+             * (manualWaterDispenser) rather than waterDispenser, so it can
+             * carry its own, longer maximum-on timeout (see main.cpp) without
+             * changing the automatic-dispensing safety envelope. A manually
+             * triggered top-off implies the user is physically present to
+             * observe the reservoir and cancel early with a short button
+             * press, unlike unattended automatic dispensing.
+             */
             void onEntryDispensingInManualModeState() {
                 setOn(greenLed, led_blink_pattern_fast);
-                setOn(waterDispenser);
+                setOn(manualWaterDispenser);
             }
 
             void onEntryWaterLowState() {
@@ -216,6 +228,9 @@ namespace xal {
             }
             void setWaterDispenser(AbstractSwitchable *waterDispenserPtr) {
                 AtoActions::waterDispenser = waterDispenserPtr;
+            }
+            void setManualWaterDispenser(AbstractSwitchable *manualWaterDispenserPtr) {
+                AtoActions::manualWaterDispenser = manualWaterDispenserPtr;
             }
             void setSleepTimer(Timer *sleepTimer) {
                 AtoActions::sleepTimer = sleepTimer;

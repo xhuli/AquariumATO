@@ -33,7 +33,7 @@ The sketch does not poll the FSM directly in the hot loop. The FSM only receives
 Global/static objects are constructed for:
 
 - LEDs and buzzer (`Switchable` + `CyclicSwitchable`)
-- water pump (`Switchable` + `TimedSwitchable`)
+- water pump (`Switchable` + two `TimedSwitchable` handles — automatic and manual dispensing)
 - liquid-level sensors
 - push button
 - sleep and idle timers
@@ -251,7 +251,7 @@ The project uses two related abstractions:
 - `Timer` for one-shot elapsed-time events such as sleep and maximum idle time;
 - `TimedSwitchable` for bounded ON/OFF time around a physical switchable device.
 
-The water pump uses `TimedSwitchable`.
+The water pump uses `TimedSwitchable` — in fact two instances (`waterPump`, `manualWaterPump`) wrapping the same physical pin, one per dispensing mode; see §11 ("Manual dispensing's extended timeout") for why.
 
 When its maximum ON time elapses, it turns the pump off before invoking the timeout callback. The callback then dispatches `DispenserOnTimeElapsed` to the FSM.
 
@@ -368,6 +368,17 @@ Maintain these invariants:
 - FSM high-water/reservoir protections remain independent layers and should not be removed because a timer exists.
 
 When modifying the pump path, add regression tests around the actual safety invariant rather than only testing helper functions.
+
+### Manual dispensing's extended timeout
+
+`DispensingInManualMode` uses a separate `TimedSwitchable` (`manualWaterPump` in `main.cpp`), wrapping the same physical pump pin as the automatic-dispensing `waterPump`, but with its maximum-on timeout fixed at `PUMP_MAX_ON_MS_MAX` (3 minutes) rather than the user-configurable `PUMP_MAX_ON_MS`. `AtoActions` routes `onEntryDispensingInManualModeState()` to this second handle via a dedicated `manualWaterDispenser` pointer, and `onExitState()` unconditionally turns off both handles so at most one is ever active.
+
+This is deliberate, not an oversight: a manually triggered top-off implies the user is physically present (they just pressed the button) and can observe the reservoir/water level directly, and can cancel early with another short press (`DispensingInManualMode --> Idle`, already wired before this change). That justifies a longer worst-case pump runtime than is acceptable for unattended automatic dispensing, whose `PUMP_MAX_ON_MS` cutoff is the last line of defense if the normal-level sensor never triggers.
+
+Two things to keep in mind if this changes:
+
+- `manualWaterPump`'s timeout is fixed at the top of the pump safety envelope, not derived from `PUMP_MAX_ON_MS`, so it does not need updating in `applyAtoConfig()` when the user changes `PUMP_MAX_ON_MS` via the console.
+- Because two `TimedSwitchable` instances wrap one physical pin, each tracks its own on/off state and elapsed time independently (see `TimedSwitchable.h`) — safe only because the FSM guarantees at most one of `DispensingInAutoMode`/`DispensingInManualMode` is ever active, and `onExitState()` turns both off on every transition. Any future change to entry/exit behavior must preserve that "turn off both" invariant.
 
 ## 12. Extending hardware abstractions
 

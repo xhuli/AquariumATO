@@ -181,12 +181,13 @@ If Reservoir Empty occurs unexpectedly, check the reservoir level, pump inlet, t
 
 ### Pump Runtime Limit in Manual Mode
 
-The configured `PUMP_MAX_ON_MS` safety limit also applies when the pump is started manually.
+Manual dispensing has its own, longer runtime limit — a fixed **180,000 ms (3 minutes)** — independent of the configured `PUMP_MAX_ON_MS` used for automatic dispensing. Unlike `PUMP_MAX_ON_MS`, this manual-mode limit is not user-configurable.
 
-If manual dispensing remains active for the configured maximum pump-on time, the controller automatically stops the pump and returns to `Idle`. Unlike an automatic-dispense timeout, this does **not** indicate a `Reservoir Empty` condition.
+The longer limit exists because starting a manual dispense means you are physically present at the controller: you can watch the reservoir and water level directly, and stop the pump immediately at any time with a short button press (see §5.1 — while dispensing manually, short-press to stop). Automatic dispensing has no such supervision, which is why its configured `PUMP_MAX_ON_MS` cutoff stays comparatively conservative.
 
-This provides a finite runtime limit even if manual dispensing is accidentally left active.
-The allowed `PUMP_MAX_ON_MS` range is **5,000–180,000 ms** (5 seconds to 3 minutes), inclusive; a value of `0` is not permitted.
+If manual dispensing remains active for the full 3 minutes without you stopping it, the controller automatically stops the pump and returns to `Idle`. Unlike an automatic-dispense timeout, this does **not** indicate a `Reservoir Empty` condition — it is simply the manual-mode safety cutoff.
+
+This provides a finite runtime limit even if manual dispensing is accidentally left active. If your top-off reservoir needs more water than 3 minutes of pump runtime provides, short-press to stop, refill the reservoir further if needed, then start manual dispensing again.
 
 ---
 
@@ -261,7 +262,9 @@ Commands are line-oriented. Unexpected arguments and invalid values are rejected
 | --- | --- | ---: |
 | `SLEEP_MAX_MS` | Maximum time the controller remains asleep before waking automatically | `7200000` (2 h) |
 | `IDLE_MAX_MS` | Maximum time continuously in Idle before the Idle-Too-Long warning | `21600000` (6 h) |
-| `PUMP_MAX_ON_MS` | Maximum single continuous pump runtime | `90000` (90 s) |
+| `PUMP_MAX_ON_MS` | Maximum single continuous pump runtime **during automatic dispensing** | `90000` (90 s) |
+
+`PUMP_MAX_ON_MS` does not govern manual dispensing, which has its own fixed 3-minute runtime limit — see [§8, "Pump Runtime Limit in Manual Mode"](#pump-runtime-limit-in-manual-mode).
 
 Validation:
 
