@@ -140,75 +140,12 @@ A dispatch with no matching `(state, event)` pair leaves the FSM in the same sta
 
 ### State diagram
 
-Visual companion to `TRANSITION_TABLE`, transcribed 1:1 from `include/ato/AtoFsm.h`. `TRANSITION_TABLE` and `test/test_ato_fsm/test_ato_fsm.cpp` remain authoritative — update this diagram alongside the table when either changes.
+The complete transition table is authoritative and lives in `include/ato/AtoFsm.h` as `TRANSITION_TABLE`. Test coverage is in `test/test_ato_fsm/test_ato_fsm.cpp`. Refer to these sources when adding states, events, or transitions.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
+Two patterns are worth noting:
 
-    Idle --> WaterLevelHigh : HighLevelSensorIsTriggered
-    Idle --> WaterLevelLow : LowLevelSensorNotTriggered
-    Idle --> Error : SleepTimeElapsed
-    Idle --> Error : DispenserOnTimeElapsed
-    Idle --> DispensingInAutoMode : NormalLevelSensorNotTriggered
-    Idle --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
-    Idle --> DispensingInManualMode : DispenseButtonIsPushed
-    Idle --> IdleForTooLong : MaxIdleTimeElapsed
-    Idle --> Sleeping : SleepButtonIsPushed
-
-    DispensingInAutoMode --> WaterLevelHigh : HighLevelSensorIsTriggered
-    DispensingInAutoMode --> WaterLevelLow : LowLevelSensorNotTriggered
-    DispensingInAutoMode --> Error : SleepTimeElapsed
-    DispensingInAutoMode --> Idle : NormalLevelSensorIsTriggered
-    DispensingInAutoMode --> Idle : DispenseButtonIsPushed
-    DispensingInAutoMode --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
-    DispensingInAutoMode --> ReservoirEmpty : DispenserOnTimeElapsed
-    DispensingInAutoMode --> Sleeping : SleepButtonIsPushed
-
-    DispensingInManualMode --> WaterLevelHigh : HighLevelSensorIsTriggered
-    DispensingInManualMode --> Error : SleepTimeElapsed
-    DispensingInManualMode --> Idle : NormalLevelSensorIsTriggered
-    DispensingInManualMode --> Idle : DispenseButtonIsPushed
-    DispensingInManualMode --> Idle : DispenserOnTimeElapsed
-    DispensingInManualMode --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
-    DispensingInManualMode --> Sleeping : SleepButtonIsPushed
-
-    WaterLevelLow --> Idle : LowLevelSensorIsTriggered
-    WaterLevelLow --> Idle : NormalLevelSensorIsTriggered
-    WaterLevelLow --> DispensingInManualMode : DispenseButtonIsPushed
-    WaterLevelLow --> Sleeping : SleepButtonIsPushed
-
-    WaterLevelHigh --> Idle : DispenseButtonIsPushed
-    WaterLevelHigh --> Idle : HighLevelSensorNotTriggered
-    WaterLevelHigh --> Sleeping : SleepButtonIsPushed
-    WaterLevelHigh --> Error : NormalLevelSensorNotTriggered
-    WaterLevelHigh --> Error : LowLevelSensorNotTriggered
-
-    ReservoirEmpty --> Error : HighLevelSensorIsTriggered
-    ReservoirEmpty --> Error : LowLevelSensorNotTriggered
-    ReservoirEmpty --> Error : SleepTimeElapsed
-    ReservoirEmpty --> Error : DispenserOnTimeElapsed
-    ReservoirEmpty --> Idle : NormalLevelSensorIsTriggered
-    ReservoirEmpty --> Idle : DispenseButtonIsPushed
-    ReservoirEmpty --> Idle : ReservoirLevelSensorIsTriggered
-    ReservoirEmpty --> Sleeping : SleepButtonIsPushed
-
-    Sleeping --> Idle : DispenseButtonIsPushed
-    Sleeping --> Idle : SleepButtonIsPushed
-    Sleeping --> Idle : SleepTimeElapsed
-
-    IdleForTooLong --> DispensingInAutoMode : NormalLevelSensorNotTriggered
-    IdleForTooLong --> Idle : DispenseButtonIsPushed
-    IdleForTooLong --> WaterLevelLow : LowLevelSensorNotTriggered
-    IdleForTooLong --> WaterLevelHigh : HighLevelSensorIsTriggered
-    IdleForTooLong --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
-    IdleForTooLong --> Sleeping : SleepButtonIsPushed
-
-    Error --> Idle : DispenseButtonIsPushed
-    Error --> Sleeping : SleepButtonIsPushed
-```
-
-Two patterns worth noticing in the graph: `SleepButtonIsPushed` reaches `Sleeping` from every other state (the sleep button always works), and `DispenseButtonIsPushed` is a manual override back to `Idle` from most non-`Idle` states.
+1. `SleepButtonIsPushed` reaches `Sleeping` from every other state — the sleep button always works, regardless of current mode or condition.
+2. `DispenseButtonIsPushed` often acts as a manual override back to `Idle` from most non-`Idle` states, allowing the user to interrupt active operations.
 
 ### Adding a state
 
