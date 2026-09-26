@@ -88,7 +88,19 @@ xal::CyclicSwitchable yellowLed(switchableYellowLed);
 xal::CyclicSwitchable greenLed(switchableGreenLed);
 xal::CyclicSwitchable buzzer(switchableBuzzer);
 
-xal::TimedSwitchable waterPump(switchableWaterPump);
+xal::TimedSwitchable autoWaterPump(switchableWaterPump);
+
+/* Same physical pump as autoWaterPump, wrapped a second time so manual
+ * dispensing can carry its own, longer maximum-on timeout (fixed at
+ * PUMP_MAX_ON_MS_MAX, see configureWaterPumps()) independently of the
+ * configurable PUMP_MAX_ON_MS used for unattended automatic dispensing.
+ * TimedSwitchable tracks on/off state and elapsed time per-instance rather
+ * than reading the wrapped pin back, so two instances sharing one physical
+ * switchable is safe as long as at most one is ever "on" at a time --
+ * guaranteed here because DispensingInAutoMode and DispensingInManualMode
+ * are mutually exclusive FSM states and AtoActions::onExitState() turns
+ * both off on every state exit. */
+xal::TimedSwitchable manualWaterPump(switchableWaterPump);
 
 xal::LiquidLevelSensor normalLevelSensor(
     ato::McuPin::NormalLiquidLevelSensor,
@@ -161,7 +173,8 @@ void configureAtoActions() {
     atoActions.setYellowLed(&yellowLed);
     atoActions.setGreenLed(&greenLed);
     atoActions.setBuzzer(&buzzer);
-    atoActions.setWaterDispenser(&waterPump);
+    atoActions.setAutoWaterDispenser(&autoWaterPump);
+    atoActions.setManualWaterDispenser(&manualWaterPump);
     atoActions.setSleepTimer(&sleepTimer);
     atoActions.setIdleTimer(&idleTimer);
 }
@@ -189,9 +202,21 @@ void configureTimers() {
     idleTimer.setCallback([]() { atoFsm.dispatch(xal::ato::Event::MaxIdleTimeElapsed); });
 }
 
-void configureWaterPump() {
-    waterPump.setOnTimeElapsedCallback([]() { atoFsm.dispatch(xal::ato::Event::DispenserOnTimeElapsed); });
-    waterPump.setOff();
+void configureWaterPumps() {
+    autoWaterPump.setOnTimeElapsedCallback([]() { atoFsm.dispatch(xal::ato::Event::DispenserOnTimeElapsed); });
+    autoWaterPump.setOff();
+
+    /* manualWaterPump's maximum-on timeout is fixed at the top of the
+     * configured pump safety envelope (PUMP_MAX_ON_MS_MAX), not derived from
+     * the user-tunable PUMP_MAX_ON_MS, and is set once here rather than in
+     * applyAtoConfig() since it never changes at runtime. A user pressing
+     * the dispense button is physically present to observe the reservoir
+     * and cancel early with another short press (DispensingInManualMode ->
+     * Idle), so a longer worst-case runtime is acceptable here even though
+     * it would not be for unattended automatic dispensing. */
+    manualWaterPump.setMaxOnTimeMs(xal::ato::PUMP_MAX_ON_MS_MAX);
+    manualWaterPump.setOnTimeElapsedCallback([]() { atoFsm.dispatch(xal::ato::Event::DispenserOnTimeElapsed); });
+    manualWaterPump.setOff();
 }
 
 void configurePushButton() {
@@ -210,12 +235,15 @@ void configureAtoConfig() {
 
 /**
  * @brief Pushes the given config's duration values into the live
- * sleepTimer/idleTimer/waterPump objects. Called once at boot (via
+ * sleepTimer/idleTimer/autoWaterPump objects. Called once at boot (via
  * configureAtoConfig()) and again by AtoConfigConsole after every
  * runtime SET/RESET, so changes take effect immediately without a reboot.
+ * manualWaterPump is deliberately not part of this path -- its timeout is
+ * fixed at PUMP_MAX_ON_MS_MAX, not derived from config (see
+ * configureWaterPumps()).
  */
 bool applyAtoConfig(const xal::ato::AtoConfig &config) {
-    return xal::ato::applyValidatedAtoConfig(config, sleepTimer, idleTimer, waterPump);
+    return xal::ato::applyValidatedAtoConfig(config, sleepTimer, idleTimer, autoWaterPump);
 }
 
 /**
@@ -290,7 +318,7 @@ void setup() {
     configureAtoActions();
     configureSensors();
     configureTimers();
-    configureWaterPump();
+    configureWaterPumps();
     configurePushButton();
 
     /* Off by default (TRACE ON/ALL/OFF via the config console toggles the

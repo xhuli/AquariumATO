@@ -120,7 +120,8 @@ namespace xal {
          * Components:
          * - LEDs (Red, Yellow, Green)
          * - Buzzer
-         * - Water Dispenser (Pump)
+         * - Water Dispenser (Pump): separate auto/manual handles onto the
+         *   same physical pump, each with its own maximum-on timeout
          * - Timers (Sleep and Idle)
          *
          * Usage:
@@ -133,7 +134,8 @@ namespace xal {
             AbstractCyclicSwitchable *yellowLed = nullptr;
             AbstractCyclicSwitchable *greenLed = nullptr;
             AbstractCyclicSwitchable *buzzer = nullptr;
-            AbstractSwitchable *waterDispenser = nullptr;
+            AbstractSwitchable *autoWaterDispenser = nullptr;
+            AbstractSwitchable *manualWaterDispenser = nullptr;
             Timer *sleepTimer = nullptr;
             Timer *idleTimer = nullptr;
 
@@ -149,7 +151,8 @@ namespace xal {
                 setOff(yellowLed);
                 setOff(greenLed);
                 setOff(buzzer);
-                setOff(waterDispenser);
+                setOff(autoWaterDispenser);
+                setOff(manualWaterDispenser);
                 setOff(sleepTimer);
                 setOff(idleTimer);
             }
@@ -167,12 +170,21 @@ namespace xal {
 
             void onEntryDispensingInAutoModeState() {
                 setOn(greenLed, led_always_on);
-                setOn(waterDispenser);
+                setOn(autoWaterDispenser);
             }
 
+            /**
+             * @brief Manual dispensing uses a dedicated pump handle
+             * (manualWaterDispenser) rather than autoWaterDispenser, so it can
+             * carry its own, longer maximum-on timeout (see main.cpp) without
+             * changing the automatic-dispensing safety envelope. A manually
+             * triggered top-off implies the user is physically present to
+             * observe the reservoir and cancel early with a short button
+             * press, unlike unattended automatic dispensing.
+             */
             void onEntryDispensingInManualModeState() {
                 setOn(greenLed, led_blink_pattern_fast);
-                setOn(waterDispenser);
+                setOn(manualWaterDispenser);
             }
 
             void onEntryWaterLowState() {
@@ -214,8 +226,11 @@ namespace xal {
             void setBuzzer(AbstractCyclicSwitchable *buzzerPtr) {
                 AtoActions::buzzer = buzzerPtr;
             }
-            void setWaterDispenser(AbstractSwitchable *waterDispenserPtr) {
-                AtoActions::waterDispenser = waterDispenserPtr;
+            void setAutoWaterDispenser(AbstractSwitchable *autoWaterDispenserPtr) {
+                AtoActions::autoWaterDispenser = autoWaterDispenserPtr;
+            }
+            void setManualWaterDispenser(AbstractSwitchable *manualWaterDispenserPtr) {
+                AtoActions::manualWaterDispenser = manualWaterDispenserPtr;
             }
             void setSleepTimer(Timer *sleepTimer) {
                 AtoActions::sleepTimer = sleepTimer;

@@ -55,6 +55,7 @@ If testing is limited to `nanoatmega328`:
 Nano-compatible suites:
 
 ```text
+test_ato_actions
 test_ato_config_store
 test_cyclic_switchable
 test_liquid_level_sensor
@@ -99,6 +100,7 @@ Each Unity suite lives in its own directory under `test/`:
 
 ```text
 test/
+├── test_ato_actions/
 ├── test_ato_config_store/
 ├── test_ato_fsm/
 ├── test_cyclic_switchable/
@@ -137,6 +139,7 @@ This avoids two common mistakes:
 
 | Suite | Main coverage | Notes |
 | --- | --- | --- |
+| `test_ato_actions` | Manual vs. automatic dispensing pump routing | Confirms exit turns off both pump handles unconditionally |
 | `test_ato_config_store` | EEPROM integrity, semantic validation, console/parser hardening, runtime config application | **Writes real EEPROM** |
 | `test_ato_fsm` | FSM reachability, legal transitions, no-match behavior | **Mega required** because the Unity image exceeds Nano SRAM |
 | `test_cyclic_switchable` | Cyclic output-pattern progression | Uses deterministic injected timestamps |
@@ -147,9 +150,32 @@ This avoids two common mistakes:
 | `test_timed_switchable` | Maximum ON/OFF timeout behavior | Confirms `0` disables timeout at the generic utility level |
 | `test_timer` | One-shot, auto-restart, and cancellation behavior | Uses injected timestamps |
 
-The following sections describe coverage and special caveats. They intentionally do not repeat board-specific commands; use the execution policy in §1 and the regression workflow in §13.
+The following sections describe coverage and special caveats. They intentionally do not repeat board-specific commands; use the execution policy in §1 and the regression workflow in §14.
 
-## 4. `test_ato_config_store`
+## 4. `test_ato_actions`
+
+Location:
+
+```text
+test/test_ato_actions/test_ato_actions.cpp
+```
+
+This suite verifies `AtoActions`'s pump routing between automatic and manual dispensing, using a fake `AbstractSwitchable` for each of the two pump handles (`autoWaterDispenser`, `manualWaterDispenser`) so no real pin or `TimedSwitchable` timing is involved.
+
+### 4.1 What it verifies
+
+* `onEntryDispensingInAutoModeState()` turns on `autoWaterDispenser` only;
+* `onEntryDispensingInManualModeState()` turns on `manualWaterDispenser` only;
+* `onExitState()` turns off both pump handles unconditionally, regardless of which one was active;
+* entry/exit methods remain safe (no crash) when pump handles are left unset (`nullptr`).
+
+This suite intentionally covers pump routing only. LED, buzzer, and timer side effects of `AtoActions` remain outside its scope, consistent with `test_ato_fsm`'s existing scope note (§6.1) that `AtoActions`'s non-pump side effects are not comprehensively regression-tested.
+
+### 4.2 Why two pump handles exist
+
+`main.cpp` wires two separate `TimedSwitchable` instances onto the same physical pump pin: `autoWaterPump` (automatic dispensing, user-configurable `PUMP_MAX_ON_MS` timeout) and `manualWaterPump` (manual dispensing, fixed at `PUMP_MAX_ON_MS_MAX`). See `doc/DevelopmentGuide.md` §11 for the safety rationale. This suite protects the routing logic in `AtoActions` that decides which handle a given dispensing mode drives; it does not re-test `TimedSwitchable`'s own timing behavior, which remains covered by `test_timed_switchable`.
+
+## 5. `test_ato_config_store`
 
 Location:
 
@@ -195,7 +221,7 @@ Do not run this suite on a configured production controller unless you are prepa
 
 Each test establishes its own EEPROM precondition so the suite does not depend on whatever data was left by a previous test or power cycle.
 
-## 5. `test_ato_fsm`
+## 6. `test_ato_fsm`
 
 Location:
 
@@ -205,7 +231,7 @@ test/test_ato_fsm/test_ato_fsm.cpp
 
 This suite verifies the state-transition behavior of `AtoFsm` and protects the transition-table design.
 
-### 5.1 What it verifies
+### 6.1 What it verifies
 
 The suite covers:
 
@@ -225,7 +251,7 @@ The complete Unity test image requires more SRAM than is reliably available on t
 
 Do not reduce production safety, change the production board target, or restructure firmware merely to make this test image fit the Nano.
 
-## 6. `test_cyclic_switchable`
+## 7. `test_cyclic_switchable`
 
 Location:
 
@@ -235,7 +261,7 @@ test/test_cyclic_switchable/test_cyclic_switchable.cpp
 
 This suite verifies `CyclicSwitchable` behavior using a fake wrapped switchable and injected timestamps.
 
-### 6.1 What it verifies
+### 7.1 What it verifies
 
 * `setOn()` starts the pattern and activates the wrapped output;
 * the pattern advances when the active interval expires;
@@ -244,7 +270,7 @@ This suite verifies `CyclicSwitchable` behavior using a fake wrapped switchable 
 
 The implementation advances according to calls to `process()`. It is not intended to replay every historical interval after a delayed loop call.
 
-## 7. `test_liquid_level_sensor`
+## 8. `test_liquid_level_sensor`
 
 Location:
 
@@ -254,7 +280,7 @@ test/test_liquid_level_sensor/test_liquid_level_sensor.cpp
 
 `LiquidLevelSensor` exposes `process(rawReading, nowMs)` so debounce and callback behavior can be exercised deterministically without physical sensor wiring.
 
-### 7.1 What it verifies
+### 8.1 What it verifies
 
 * a single noisy reading does not change the debounced state;
 * a minority noise burst does not flip the debounced state;
@@ -266,7 +292,7 @@ test/test_liquid_level_sensor/test_liquid_level_sensor.cpp
 
 These are firmware logic tests. They do not prove electrical behavior, sensor placement, cleanliness, optical performance, or installation quality.
 
-## 8. `test_push_button`
+## 9. `test_push_button`
 
 Location:
 
@@ -276,7 +302,7 @@ test/test_push_button/test_push_button.cpp
 
 Like the liquid-level sensor, `PushButton` exposes a deterministic processing seam so tests can supply fabricated raw readings and timestamps.
 
-### 8.1 What it verifies
+### 9.1 What it verifies
 
 * isolated noise does not register as a press;
 * minority noise does not change the debounced state;
@@ -285,7 +311,7 @@ Like the liquid-level sensor, `PushButton` exposes a deterministic processing se
 * a valid long press fires the long-press callback;
 * a press shorter than the debounce requirement does not fire a callback.
 
-## 9. `test_ring_buffer`
+## 10. `test_ring_buffer`
 
 Location:
 
@@ -295,7 +321,7 @@ test/test_ring_buffer/test_ring_buffer.cpp
 
 This suite protects the generic `RingBuffer<T, N>` utility used by the button and liquid-level sensor debounce logic.
 
-### 9.1 What it verifies
+### 10.1 What it verifies
 
 * a fresh buffer is logically empty;
 * `average()` is safe on an empty buffer and returns `T()`;
@@ -310,7 +336,7 @@ This suite protects the generic `RingBuffer<T, N>` utility used by the button an
 
 `clear()` may also reset backing storage to a known default value for debugging, but logical validity is determined by the buffer's count/index state.
 
-## 10. `test_runnable`
+## 11. `test_runnable`
 
 Location:
 
@@ -320,7 +346,7 @@ test/test_runnable/
 
 This suite protects the `Runnable` self-registration mechanism used throughout the firmware.
 
-### 10.1 What it verifies
+### 11.1 What it verifies
 
 * `setupAll()` reaches registered objects;
 * `loopAll()` reaches registered objects;
@@ -331,7 +357,7 @@ The extra `runnable_fixture_a.cpp` and `runnable_fixture_b.cpp` files are delibe
 
 `Runnable` is intentionally non-copyable and non-movable, and registered instances are expected to have static/global lifetime.
 
-## 11. `test_timed_switchable`
+## 12. `test_timed_switchable`
 
 Location:
 
@@ -341,7 +367,7 @@ test/test_timed_switchable/test_timed_switchable.cpp
 
 This suite verifies the generic time-limited switch wrapper using a fake `AbstractSwitchable`.
 
-### 11.1 What it verifies
+### 12.1 What it verifies
 
 * an ON duration expires, switches the wrapped component off, and fires the timeout callback;
 * an OFF duration expires, switches the wrapped component on, and fires the timeout callback;
@@ -349,7 +375,7 @@ This suite verifies the generic time-limited switch wrapper using a fake `Abstra
 
 That last behavior is intentional in `TimedSwitchable`. AquariumATO's higher-level configuration validation therefore rejects `PUMP_MAX_ON_MS=0`, because allowing it for the ATO pump would disable the runtime safety cutoff.
 
-## 12. `test_timer`
+## 13. `test_timer`
 
 Location:
 
@@ -359,16 +385,16 @@ test/test_timer/test_timer.cpp
 
 This suite verifies the generic timer independently of `millis()` by supplying explicit timestamps.
 
-### 12.1 What it verifies
+### 13.1 What it verifies
 
 * an OFF timer does nothing;
 * a one-shot timer fires and switches itself off;
 * an auto-restart timer can fire repeatedly;
 * manually switching a timer off cancels a pending fire.
 
-## 13. Running a regression pass
+## 14. Running a regression pass
 
-### 13.1 Normal development workflow
+### 14.1 Normal development workflow
 
 For ordinary development, use the Mega for both targeted tests and the full regression pass.
 
@@ -392,7 +418,7 @@ pio run -e nanoatmega328
 
 This is the recommended default workflow because it keeps test execution simple while still validating that production firmware builds for the real Nano target.
 
-### 13.2 When testing is limited to a Nano
+### 14.2 When testing is limited to a Nano
 
 If no Mega is available, run only the relevant Nano-compatible suites, one at a time with `-f`.
 
@@ -408,15 +434,15 @@ Use the Nano-compatible suite list in §1.2 and skip `test_ato_fsm`.
 
 A Nano-only pass is therefore a **partial regression pass** until the FSM suite has also been run on a Mega.
 
-### 13.3 EEPROM reminder
+### 14.3 EEPROM reminder
 
 If the regression includes `test_ato_config_store`, remember that the suite overwrites the test board's stored ATO configuration. Restore the desired settings afterward if that board will be returned to normal service.
 
-## 14. Adding or changing tests
+## 15. Adding or changing tests
 
 Behavior changes should be accompanied by tests whenever a deterministic seam exists or can be introduced without compromising the production design.
 
-### 14.1 Create a suite under `test/`
+### 15.1 Create a suite under `test/`
 
 Create a directory with a `test_` prefix:
 
@@ -451,7 +477,7 @@ void loop()
 
 Follow existing repository patterns rather than copying this skeleton mechanically.
 
-### 14.2 Prefer deterministic behavior seams
+### 15.2 Prefer deterministic behavior seams
 
 The timer, button, liquid-level sensor, and switchable tests avoid fragile real-time or jumper-wire tests by injecting timestamps, raw readings, or fake components.
 
@@ -466,13 +492,13 @@ Continue that approach where practical:
 
 For time-based generic `lib/` code, preserve the existing convention of exposing `process(nowMs)` or an equivalent deterministic seam rather than reading `millis()` internally when testability would otherwise be lost.
 
-### 14.3 Keep tests independent
+### 15.3 Keep tests independent
 
 Each test must establish its own starting conditions. Do not rely on Unity execution order to prepare state for the next test.
 
 This is especially important for EEPROM because persistent state survives reset and previous test runs. The configuration suite explicitly establishes its own EEPROM preconditions for this reason.
 
-### 14.4 FSM changes
+### 15.4 FSM changes
 
 When adding a new FSM state, event, or transition:
 
@@ -484,7 +510,7 @@ When adding a new FSM state, event, or transition:
 
 If a new state requires entry behavior, also cover the corresponding `AtoActions` implementation at the most appropriate test level.
 
-### 14.5 Timing and debounce changes
+### 15.5 Timing and debounce changes
 
 When changing timing or debounce behavior, test boundary conditions explicitly:
 
@@ -496,7 +522,7 @@ When changing timing or debounce behavior, test boundary conditions explicitly:
 
 For LED or buzzer interval patterns, preserve the compile-time duration checks in `AtoActions` rather than relying only on runtime tests.
 
-## 15. Troubleshooting tests
+## 16. Troubleshooting tests
 
 ### Test firmware does not fit
 
@@ -536,7 +562,7 @@ This is expected. `test_ato_config_store` deliberately writes real EEPROM. Resto
 
 Verify the correct board environment and serial port first. If upload succeeds but Unity output is not observed, check the PlatformIO serial connection and board reset behavior before changing test code.
 
-## 16. What the automated tests do not prove
+## 17. What the automated tests do not prove
 
 The current suites provide strong coverage of generic timing/debounce utilities, configuration safety, parser behavior, and FSM transitions. They are not a substitute for testing the assembled ATO as a physical system.
 
@@ -556,7 +582,7 @@ The automated suites do not comprehensively prove:
 
 Use [`HardwareGuide.md`](HardwareGuide.md) for hardware bring-up and electrical/plumbing guidance, and [`UserGuide.md`](UserGuide.md) for operating checks and maintenance.
 
-## 17. Testing policy summary
+## 18. Testing policy summary
 
 For day-to-day work, remember these rules:
 

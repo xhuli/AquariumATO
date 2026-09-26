@@ -33,7 +33,7 @@ The sketch does not poll the FSM directly in the hot loop. The FSM only receives
 Global/static objects are constructed for:
 
 - LEDs and buzzer (`Switchable` + `CyclicSwitchable`)
-- water pump (`Switchable` + `TimedSwitchable`)
+- water pump (`Switchable` + two `TimedSwitchable` handles — automatic and manual dispensing)
 - liquid-level sensors
 - push button
 - sleep and idle timers
@@ -140,75 +140,12 @@ A dispatch with no matching `(state, event)` pair leaves the FSM in the same sta
 
 ### State diagram
 
-Visual companion to `TRANSITION_TABLE`, transcribed 1:1 from `include/ato/AtoFsm.h`. `TRANSITION_TABLE` and `test/test_ato_fsm/test_ato_fsm.cpp` remain authoritative — update this diagram alongside the table when either changes.
+The complete transition table is authoritative and lives in `include/ato/AtoFsm.h` as `TRANSITION_TABLE`. Test coverage is in `test/test_ato_fsm/test_ato_fsm.cpp`. Refer to these sources when adding states, events, or transitions.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
+Two patterns are worth noting:
 
-    Idle --> WaterLevelHigh : HighLevelSensorIsTriggered
-    Idle --> WaterLevelLow : LowLevelSensorNotTriggered
-    Idle --> Error : SleepTimeElapsed
-    Idle --> Error : DispenserOnTimeElapsed
-    Idle --> DispensingInAutoMode : NormalLevelSensorNotTriggered
-    Idle --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
-    Idle --> DispensingInManualMode : DispenseButtonIsPushed
-    Idle --> IdleForTooLong : MaxIdleTimeElapsed
-    Idle --> Sleeping : SleepButtonIsPushed
-
-    DispensingInAutoMode --> WaterLevelHigh : HighLevelSensorIsTriggered
-    DispensingInAutoMode --> WaterLevelLow : LowLevelSensorNotTriggered
-    DispensingInAutoMode --> Error : SleepTimeElapsed
-    DispensingInAutoMode --> Idle : NormalLevelSensorIsTriggered
-    DispensingInAutoMode --> Idle : DispenseButtonIsPushed
-    DispensingInAutoMode --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
-    DispensingInAutoMode --> ReservoirEmpty : DispenserOnTimeElapsed
-    DispensingInAutoMode --> Sleeping : SleepButtonIsPushed
-
-    DispensingInManualMode --> WaterLevelHigh : HighLevelSensorIsTriggered
-    DispensingInManualMode --> Error : SleepTimeElapsed
-    DispensingInManualMode --> Idle : NormalLevelSensorIsTriggered
-    DispensingInManualMode --> Idle : DispenseButtonIsPushed
-    DispensingInManualMode --> Idle : DispenserOnTimeElapsed
-    DispensingInManualMode --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
-    DispensingInManualMode --> Sleeping : SleepButtonIsPushed
-
-    WaterLevelLow --> Idle : LowLevelSensorIsTriggered
-    WaterLevelLow --> Idle : NormalLevelSensorIsTriggered
-    WaterLevelLow --> DispensingInManualMode : DispenseButtonIsPushed
-    WaterLevelLow --> Sleeping : SleepButtonIsPushed
-
-    WaterLevelHigh --> Idle : DispenseButtonIsPushed
-    WaterLevelHigh --> Idle : HighLevelSensorNotTriggered
-    WaterLevelHigh --> Sleeping : SleepButtonIsPushed
-    WaterLevelHigh --> Error : NormalLevelSensorNotTriggered
-    WaterLevelHigh --> Error : LowLevelSensorNotTriggered
-
-    ReservoirEmpty --> Error : HighLevelSensorIsTriggered
-    ReservoirEmpty --> Error : LowLevelSensorNotTriggered
-    ReservoirEmpty --> Error : SleepTimeElapsed
-    ReservoirEmpty --> Error : DispenserOnTimeElapsed
-    ReservoirEmpty --> Idle : NormalLevelSensorIsTriggered
-    ReservoirEmpty --> Idle : DispenseButtonIsPushed
-    ReservoirEmpty --> Idle : ReservoirLevelSensorIsTriggered
-    ReservoirEmpty --> Sleeping : SleepButtonIsPushed
-
-    Sleeping --> Idle : DispenseButtonIsPushed
-    Sleeping --> Idle : SleepButtonIsPushed
-    Sleeping --> Idle : SleepTimeElapsed
-
-    IdleForTooLong --> DispensingInAutoMode : NormalLevelSensorNotTriggered
-    IdleForTooLong --> Idle : DispenseButtonIsPushed
-    IdleForTooLong --> WaterLevelLow : LowLevelSensorNotTriggered
-    IdleForTooLong --> WaterLevelHigh : HighLevelSensorIsTriggered
-    IdleForTooLong --> ReservoirEmpty : ReservoirLevelSensorNotTriggered
-    IdleForTooLong --> Sleeping : SleepButtonIsPushed
-
-    Error --> Idle : DispenseButtonIsPushed
-    Error --> Sleeping : SleepButtonIsPushed
-```
-
-Two patterns worth noticing in the graph: `SleepButtonIsPushed` reaches `Sleeping` from every other state (the sleep button always works), and `DispenseButtonIsPushed` is a manual override back to `Idle` from most non-`Idle` states.
+1. `SleepButtonIsPushed` reaches `Sleeping` from every other state — the sleep button always works, regardless of current mode or condition.
+2. `DispenseButtonIsPushed` often acts as a manual override back to `Idle` from most non-`Idle` states, allowing the user to interrupt active operations.
 
 ### Adding a state
 
@@ -314,7 +251,7 @@ The project uses two related abstractions:
 - `Timer` for one-shot elapsed-time events such as sleep and maximum idle time;
 - `TimedSwitchable` for bounded ON/OFF time around a physical switchable device.
 
-The water pump uses `TimedSwitchable`.
+The water pump uses `TimedSwitchable` — in fact two instances (`autoWaterPump`, `manualWaterPump`) wrapping the same physical pin, one per dispensing mode; see §11 ("Manual dispensing's extended timeout") for why.
 
 When its maximum ON time elapses, it turns the pump off before invoking the timeout callback. The callback then dispatches `DispenserOnTimeElapsed` to the FSM.
 
@@ -431,6 +368,17 @@ Maintain these invariants:
 - FSM high-water/reservoir protections remain independent layers and should not be removed because a timer exists.
 
 When modifying the pump path, add regression tests around the actual safety invariant rather than only testing helper functions.
+
+### Manual dispensing's extended timeout
+
+`DispensingInManualMode` uses a separate `TimedSwitchable` (`manualWaterPump` in `main.cpp`), wrapping the same physical pump pin as the automatic-dispensing `autoWaterPump`, but with its maximum-on timeout fixed at `PUMP_MAX_ON_MS_MAX` (3 minutes) rather than the user-configurable `PUMP_MAX_ON_MS`. `AtoActions` routes `onEntryDispensingInManualModeState()` to this second handle via a dedicated `manualWaterDispenser` pointer (paired with `autoWaterDispenser`/`setAutoWaterDispenser()` for the automatic path), and `onExitState()` unconditionally turns off both handles so at most one is ever active.
+
+This is deliberate, not an oversight: a manually triggered top-off implies the user is physically present (they just pressed the button) and can observe the reservoir/water level directly, and can cancel early with another short press (`DispensingInManualMode --> Idle`, already wired before this change). That justifies a longer worst-case pump runtime than is acceptable for unattended automatic dispensing, whose `PUMP_MAX_ON_MS` cutoff is the last line of defense if the normal-level sensor never triggers.
+
+Two things to keep in mind if this changes:
+
+- `manualWaterPump`'s timeout is fixed at the top of the pump safety envelope, not derived from `PUMP_MAX_ON_MS`, so it does not need updating in `applyAtoConfig()` when the user changes `PUMP_MAX_ON_MS` via the console.
+- Because two `TimedSwitchable` instances wrap one physical pin, each tracks its own on/off state and elapsed time independently (see `TimedSwitchable.h`) — safe only because the FSM guarantees at most one of `DispensingInAutoMode`/`DispensingInManualMode` is ever active, and `onExitState()` turns both off on every transition. Any future change to entry/exit behavior must preserve that "turn off both" invariant.
 
 ## 12. Extending hardware abstractions
 

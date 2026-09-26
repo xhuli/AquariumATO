@@ -47,7 +47,7 @@ doc/                   # the five guides below + images
 | `doc/UserGuide.md` | Operating the device: LEDs, buzzer, button, sleep, config console, troubleshooting |
 | `doc/HardwareGuide.md` | Pin map, power architecture (`VCC` vs `PWR`), sensor types, pump driver, BOM, wet bring-up |
 | `doc/ToolchainBootstrap.md` | Fresh-machine setup: PlatformIO, VS Code, CLion/CMake, udev rules, upload baud gotchas |
-| `doc/TestingGuide.md` | All 9 Unity suites, per-suite caveats, adding tests, EEPROM-destructive warning |
+| `doc/TestingGuide.md` | All 10 Unity suites, per-suite caveats, adding tests, EEPROM-destructive warning |
 | `doc/DevelopmentGuide.md` | FSM design, `Runnable`, `AtoActions`, debouncing, config architecture, extension workflows |
 
 Search the relevant guide for real detail rather than relying on this summary.
